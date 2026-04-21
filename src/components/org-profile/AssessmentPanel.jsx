@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { getRiskColor, SCORE_WEIGHTS, getScoreColor } from '@/lib/scoringEngine';
-import { AlertTriangle, CheckCircle2, AlertCircle, Info, HelpCircle } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, AlertCircle, Info, HelpCircle, ClipboardCheck, ShieldAlert } from 'lucide-react';
 
 const severityIcons = { high: AlertTriangle, moderate: AlertCircle, low: CheckCircle2 };
 const severityColors = {
@@ -71,7 +72,7 @@ function ScoreBar({ scoreKey, value }) {
   );
 }
 
-export default function AssessmentPanel({ assessment }) {
+export default function AssessmentPanel({ assessment, onRecordDecision }) {
   if (!assessment) return null;
 
   let factors = [];
@@ -79,12 +80,31 @@ export default function AssessmentPanel({ assessment }) {
     try { factors = JSON.parse(assessment.explanationFactors); } catch { factors = []; }
   }
 
-  // Group factors by area for cleaner display
   const highFactors = factors.filter(f => f.severity === 'high');
   const otherFactors = factors.filter(f => f.severity !== 'high');
+  const needsReview = assessment.humanReviewRequired &&
+    (assessment.reviewerStatus === 'needs_review' || assessment.reviewerStatus === 'pending');
 
   return (
     <div className="space-y-4">
+      {/* Human review required banner */}
+      {needsReview && (
+        <div className="flex items-start gap-3 rounded-xl border border-orange-300 bg-orange-50 p-4">
+          <ShieldAlert className="w-5 h-5 text-orange-500 flex-shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-orange-800">Human Review Required</p>
+            <p className="text-xs text-orange-700 mt-0.5">
+              This assessment is flagged as {assessment.riskLevel} concern. A reviewer must confirm, downgrade, or override this finding before any funding decision is made.
+            </p>
+          </div>
+          {onRecordDecision && (
+            <Button size="sm" onClick={onRecordDecision} className="flex-shrink-0 gap-1.5 text-xs bg-orange-600 hover:bg-orange-700">
+              <ClipboardCheck className="w-3.5 h-3.5" /> Record Decision
+            </Button>
+          )}
+        </div>
+      )}
+
       {/* Score breakdown */}
       <Card>
         <CardHeader className="pb-2">

@@ -11,12 +11,14 @@ import FundingPanel from '@/components/org-profile/FundingPanel';
 import FinancialsPanel from '@/components/org-profile/FinancialsPanel';
 import EvidencePanel from '@/components/org-profile/EvidencePanel';
 import ReviewHistoryPanel from '@/components/org-profile/ReviewHistoryPanel';
+import InlineReviewDialog from '@/components/org-profile/InlineReviewDialog';
 import { calculateCapacityScores } from '@/lib/scoringEngine';
 
 export default function OrganizationProfile() {
   const { id: orgId } = useParams();
   const qc = useQueryClient();
   const [isRunning, setIsRunning] = useState(false);
+  const [showReviewDialog, setShowReviewDialog] = useState(false);
 
   const { data: org } = useQuery({ queryKey: ['org', orgId], queryFn: async () => {
     const orgs = await base44.entities.Organizations.filter({ id: orgId });
@@ -66,12 +68,15 @@ Write in neutral, evidence-based language. This is an early-warning assessment, 
       programExpenseScore: scores.programExpenseScore,
       dependencyScore: scores.dependencyScore,
       deliveryPlausibilityScore: scores.deliveryPlausibilityScore,
+      complianceScore: scores.complianceScore,
       overallCapacityScore: scores.overallCapacityScore,
       riskLevel: scores.riskLevel,
       aiSummary,
       explanationFactors: JSON.stringify(scores.factors),
       humanReviewRequired: scores.humanReviewRequired,
+      // Moderate and high-risk assessments automatically enter the review queue
       reviewerStatus: scores.humanReviewRequired ? 'needs_review' : 'validated',
+      benchmarkCategory: scores.riskLevel,
     };
 
     await base44.entities.CapacityAssessments.create(assessmentData);
@@ -104,7 +109,7 @@ Write in neutral, evidence-based language. This is an early-warning assessment, 
           <TabsTrigger value="reviews">Reviews ({decisions.length})</TabsTrigger>
         </TabsList>
         <TabsContent value="assessment" className="mt-4">
-          {latestAssessment ? <AssessmentPanel assessment={latestAssessment} /> : (
+          {latestAssessment ? <AssessmentPanel assessment={latestAssessment} onRecordDecision={() => setShowReviewDialog(true)} /> : (
             <div className="text-center py-12 text-muted-foreground">
               <p className="text-sm">No assessment has been run yet.</p>
               <p className="text-xs mt-1">Click "Run Capacity Assessment" to generate a score.</p>
@@ -116,6 +121,20 @@ Write in neutral, evidence-based language. This is an early-warning assessment, 
         <TabsContent value="evidence" className="mt-4"><EvidencePanel items={evidence} /></TabsContent>
         <TabsContent value="reviews" className="mt-4"><ReviewHistoryPanel decisions={decisions} /></TabsContent>
       </Tabs>
+
+      {showReviewDialog && latestAssessment && (
+        <InlineReviewDialog
+          assessment={latestAssessment}
+          org={org}
+          onClose={() => setShowReviewDialog(false)}
+          onSuccess={() => {
+            setShowReviewDialog(false);
+            qc.invalidateQueries({ queryKey: ['assessments-org', orgId] });
+            qc.invalidateQueries({ queryKey: ['decisions', orgId] });
+            qc.invalidateQueries({ queryKey: ['assessments'] });
+          }}
+        />
+      )}
     </div>
   );
 }
