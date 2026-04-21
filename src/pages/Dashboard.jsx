@@ -2,187 +2,352 @@ import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Link } from 'react-router-dom';
-import { Building2, AlertTriangle, CheckCircle2, ClipboardCheck, ArrowRight, TrendingDown } from 'lucide-react';
+import {
+  Building2, AlertTriangle, CheckCircle2, ClipboardCheck,
+  ArrowRight, TrendingDown, Lightbulb, ChevronRight
+} from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip } from 'recharts';
-import StatCard from '@/components/shared/StatCard';
 import RiskBadge from '@/components/shared/RiskBadge';
+
+function StatPill({ title, value, sub, color }) {
+  return (
+    <div className="bg-card border border-border rounded-xl p-4 flex flex-col gap-1">
+      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{title}</span>
+      <span className={`text-3xl font-bold leading-none ${color || 'text-foreground'}`}>{value}</span>
+      {sub && <span className="text-xs text-muted-foreground">{sub}</span>}
+    </div>
+  );
+}
+
+function deriveInsights({ orgs, latest, highCount, modCount, reviewQueue, avgScore, orgMap }) {
+  const insights = [];
+
+  // Insight 1: High-risk count and what it means
+  if (highCount > 0) {
+    const names = latest
+      .filter(a => a.riskLevel === 'high')
+      .sort((a, b) => a.overallCapacityScore - b.overallCapacityScore)
+      .slice(0, 2)
+      .map(a => orgMap[a.organizationId]?.organizationName || 'Unknown')
+      .join(' and ');
+    insights.push({
+      severity: 'high',
+      label: 'Immediate Review Required',
+      text: `${highCount} organization${highCount > 1 ? 's' : ''} scored below 40, indicating a significant mismatch between funding and observable delivery capacity. ${names ? `Notable: ${names}.` : ''}`
+    });
+  } else if (modCount > 0) {
+    insights.push({
+      severity: 'moderate',
+      label: 'Elevated Concern',
+      text: `No organizations are currently in the high-risk band, but ${modCount} are flagged as moderate concern and warrant close monitoring before renewal decisions.`
+    });
+  } else {
+    insights.push({
+      severity: 'low',
+      label: 'Portfolio in Good Standing',
+      text: `All assessed organizations currently fall in the low-concern band. No immediate capacity flags have been identified.`
+    });
+  }
+
+  // Insight 2: Review queue urgency
+  if (reviewQueue > 0) {
+    insights.push({
+      severity: reviewQueue >= 3 ? 'moderate' : 'low',
+      label: 'Review Queue',
+      text: `${reviewQueue} assessment${reviewQueue > 1 ? 's' : ''} ${reviewQueue > 1 ? 'are' : 'is'} pending human validation. Timely review ensures decisions are documented before the next funding cycle.`
+    });
+  } else {
+    insights.push({
+      severity: 'low',
+      label: 'Review Queue Clear',
+      text: 'All flagged assessments have been reviewed. The human validation workflow is current.'
+    });
+  }
+
+  // Insight 3: Portfolio average and coverage
+  const assessed = latest.length;
+  const unassessed = orgs.length - assessed;
+  if (unassessed > 0) {
+    insights.push({
+      severity: 'moderate',
+      label: 'Coverage Gap',
+      text: `${unassessed} of ${orgs.length} organizations have not yet been assessed. Incomplete coverage limits portfolio-level risk visibility.`
+    });
+  } else if (avgScore > 0) {
+    insights.push({
+      severity: avgScore >= 68 ? 'low' : avgScore >= 40 ? 'moderate' : 'high',
+      label: 'Portfolio Average Score',
+      text: `The average capacity score across all ${assessed} assessed organizations is ${avgScore}/100. ${
+        avgScore >= 68
+          ? 'The overall portfolio appears adequately resourced relative to commitments.'
+          : avgScore >= 40
+          ? 'The portfolio average sits in the moderate-concern band — consider a systemic review of benchmarks.'
+          : 'The portfolio average is in the high-concern band, suggesting structural capacity issues across multiple recipients.'
+      }`
+    });
+  }
+
+  return insights.slice(0, 3);
+}
+
+const insightStyle = {
+  high:     { bar: 'bg-red-500',    icon: AlertTriangle,  iconClass: 'text-red-600',    bg: 'bg-red-50 border-red-200' },
+  moderate: { bar: 'bg-yellow-400', icon: TrendingDown,   iconClass: 'text-yellow-600', bg: 'bg-yellow-50 border-yellow-200' },
+  low:      { bar: 'bg-green-500',  icon: CheckCircle2,   iconClass: 'text-green-600',  bg: 'bg-green-50 border-green-200' },
+};
 
 export default function Dashboard() {
   const { data: orgs = [] } = useQuery({ queryKey: ['orgs'], queryFn: () => base44.entities.Organizations.list() });
   const { data: assessments = [] } = useQuery({ queryKey: ['assessments'], queryFn: () => base44.entities.CapacityAssessments.list() });
-  const { data: reviews = [] } = useQuery({ queryKey: ['reviews'], queryFn: () => base44.entities.ReviewDecisions.list() });
 
-  const latestAssessments = {};
+  const latestMap = {};
   assessments.forEach(a => {
-    if (!latestAssessments[a.organizationId] || new Date(a.assessmentDate) > new Date(latestAssessments[a.organizationId].assessmentDate)) {
-      latestAssessments[a.organizationId] = a;
+    if (!latestMap[a.organizationId] || new Date(a.assessmentDate) > new Date(latestMap[a.organizationId].assessmentDate)) {
+      latestMap[a.organizationId] = a;
     }
   });
-  const latest = Object.values(latestAssessments);
+  const latest = Object.values(latestMap);
 
-  const lowCount = latest.filter(a => a.riskLevel === 'low').length;
-  const modCount = latest.filter(a => a.riskLevel === 'moderate').length;
+  const orgMap = {};
+  orgs.forEach(o => { orgMap[o.id] = o; });
+
   const highCount = latest.filter(a => a.riskLevel === 'high').length;
+  const modCount  = latest.filter(a => a.riskLevel === 'moderate').length;
+  const lowCount  = latest.filter(a => a.riskLevel === 'low').length;
   const reviewQueue = latest.filter(a => a.reviewerStatus === 'pending' || a.reviewerStatus === 'needs_review').length;
-  const avgScore = latest.length > 0 ? Math.round(latest.reduce((s, a) => s + a.overallCapacityScore, 0) / latest.length) : 0;
+  const avgScore = latest.length > 0
+    ? Math.round(latest.reduce((s, a) => s + (a.overallCapacityScore || 0), 0) / latest.length)
+    : 0;
 
   const pieData = [
-    { name: 'Low Concern', value: lowCount, color: '#22c55e' },
-    { name: 'Moderate', value: modCount, color: '#eab308' },
-    { name: 'High Concern', value: highCount, color: '#ef4444' },
+    { name: 'Low Concern',   value: lowCount,  color: '#22c55e' },
+    { name: 'Moderate',      value: modCount,  color: '#eab308' },
+    { name: 'High Concern',  value: highCount, color: '#ef4444' },
   ].filter(d => d.value > 0);
 
   const topFlagged = latest
     .filter(a => a.riskLevel === 'high' || a.riskLevel === 'moderate')
     .sort((a, b) => a.overallCapacityScore - b.overallCapacityScore)
-    .slice(0, 5);
+    .slice(0, 6);
 
-  const orgMap = {};
-  orgs.forEach(o => { orgMap[o.id] = o; });
+  const insights = deriveInsights({ orgs, latest, highCount, modCount, reviewQueue, avgScore, orgMap });
+
+  const sortedForBar = [...latest].sort((a, b) => a.overallCapacityScore - b.overallCapacityScore);
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Capacity Assessment Dashboard</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Monitoring organizational capacity against funding commitments
+    <div className="space-y-6 max-w-7xl mx-auto">
+
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Capacity Assessment Dashboard</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">Early-warning monitoring of organizational capacity against funding commitments</p>
+        </div>
+        <p className="text-xs text-muted-foreground sm:text-right">
+          {latest.length} of {orgs.length} organizations assessed
         </p>
       </div>
 
-      {/* Disclaimer */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-blue-800">
-        <strong>Notice:</strong> This tool provides an early-warning assessment based on available structured indicators and evidence. It does not determine fraud, misconduct, or legal non-compliance. All flagged cases require human review.
+      {/* Executive Insights */}
+      {insights.length > 0 && (
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <Lightbulb className="w-4 h-4 text-muted-foreground" />
+            <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Executive Takeaways</h2>
+          </div>
+          <div className="grid sm:grid-cols-3 gap-3">
+            {insights.map((ins, i) => {
+              const style = insightStyle[ins.severity];
+              const Icon = style.icon;
+              return (
+                <div key={i} className={`relative rounded-xl border p-4 overflow-hidden ${style.bg}`}>
+                  <div className={`absolute top-0 left-0 h-full w-1 ${style.bar}`} />
+                  <div className="pl-2">
+                    <div className="flex items-center gap-1.5 mb-1.5">
+                      <Icon className={`w-3.5 h-3.5 flex-shrink-0 ${style.iconClass}`} />
+                      <span className={`text-xs font-semibold uppercase tracking-wide ${style.iconClass}`}>{ins.label}</span>
+                    </div>
+                    <p className="text-sm leading-snug text-foreground">{ins.text}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Stats Row */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+        <StatPill title="Organizations" value={orgs.length} />
+        <StatPill title="Avg. Score" value={avgScore > 0 ? avgScore : '–'} sub="out of 100"
+          color={avgScore >= 68 ? 'text-green-600' : avgScore >= 40 ? 'text-yellow-600' : 'text-red-600'} />
+        <StatPill title="Low Concern"  value={lowCount}  sub="Score ≥ 68" color="text-green-600" />
+        <StatPill title="Moderate"     value={modCount}  sub="Score 40–67" color="text-yellow-600" />
+        <StatPill title="High Concern" value={highCount} sub="Score < 40"  color="text-red-600" />
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-        <StatCard title="Organizations" value={orgs.length} icon={Building2} />
-        <StatCard title="Low Concern" value={lowCount} subtitle="Score ≥ 70" icon={CheckCircle2} color="bg-green-500" />
-        <StatCard title="Moderate" value={modCount} subtitle="Score 40–69" icon={TrendingDown} color="bg-yellow-500" />
-        <StatCard title="High Concern" value={highCount} subtitle="Score < 40" icon={AlertTriangle} color="bg-red-500" />
-        <StatCard title="Review Queue" value={reviewQueue} subtitle="Pending review" icon={ClipboardCheck} color="bg-blue-500" />
-      </div>
+      {/* Charts + Queue */}
+      <div className="grid lg:grid-cols-3 gap-4">
 
-      <div className="grid lg:grid-cols-3 gap-6">
-        {/* Risk Distribution */}
+        {/* Risk distribution donut */}
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold">Risk Distribution</CardTitle>
+            <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Risk Distribution</CardTitle>
           </CardHeader>
           <CardContent>
             {pieData.length > 0 ? (
-              <div className="flex items-center gap-6">
-                <ResponsiveContainer width={120} height={120}>
+              <div className="flex items-center gap-4">
+                <ResponsiveContainer width={100} height={100}>
                   <PieChart>
-                    <Pie data={pieData} cx="50%" cy="50%" innerRadius={35} outerRadius={55} dataKey="value" strokeWidth={2} stroke="hsl(var(--card))">
+                    <Pie data={pieData} cx="50%" cy="50%" innerRadius={30} outerRadius={48} dataKey="value" strokeWidth={2} stroke="hsl(var(--card))">
                       {pieData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
                     </Pie>
                   </PieChart>
                 </ResponsiveContainer>
-                <div className="space-y-2">
+                <div className="space-y-2 flex-1">
                   {pieData.map(d => (
                     <div key={d.name} className="flex items-center gap-2 text-xs">
-                      <span className="w-2.5 h-2.5 rounded-full" style={{ background: d.color }} />
-                      <span className="text-muted-foreground">{d.name}</span>
-                      <span className="font-semibold ml-auto">{d.value}</span>
+                      <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: d.color }} />
+                      <span className="text-muted-foreground flex-1">{d.name}</span>
+                      <span className="font-bold">{d.value}</span>
                     </div>
                   ))}
                 </div>
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground py-8 text-center">No assessments yet</p>
+              <p className="text-sm text-muted-foreground py-6 text-center">No assessments yet</p>
             )}
           </CardContent>
         </Card>
 
-        {/* Score Distribution */}
+        {/* Score bar chart */}
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold">Score Distribution</CardTitle>
+            <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Score Spread</CardTitle>
           </CardHeader>
           <CardContent>
-            {latest.length > 0 ? (
-              <ResponsiveContainer width="100%" height={120}>
-                <BarChart data={latest.sort((a,b) => a.overallCapacityScore - b.overallCapacityScore)}>
+            {sortedForBar.length > 0 ? (
+              <ResponsiveContainer width="100%" height={100}>
+                <BarChart data={sortedForBar} barCategoryGap="20%">
                   <XAxis dataKey="organizationId" hide />
                   <YAxis domain={[0, 100]} hide />
-                  <Tooltip content={({ active, payload }) => {
-                    if (!active || !payload?.length) return null;
-                    const a = payload[0].payload;
-                    const org = orgMap[a.organizationId];
-                    return (
-                      <div className="bg-card border rounded-lg shadow-lg p-2 text-xs">
-                        <p className="font-semibold">{org?.organizationName || 'Unknown'}</p>
-                        <p className="text-muted-foreground">Score: {a.overallCapacityScore}</p>
-                      </div>
-                    );
-                  }} />
-                  <Bar dataKey="overallCapacityScore" radius={[2, 2, 0, 0]}>
-                    {latest.sort((a,b) => a.overallCapacityScore - b.overallCapacityScore).map((a, i) => (
-                      <Cell key={i} fill={a.overallCapacityScore >= 70 ? '#22c55e' : a.overallCapacityScore >= 40 ? '#eab308' : '#ef4444'} />
+                  <Tooltip
+                    cursor={{ fill: 'hsl(var(--muted))' }}
+                    content={({ active, payload }) => {
+                      if (!active || !payload?.length) return null;
+                      const a = payload[0].payload;
+                      const org = orgMap[a.organizationId];
+                      return (
+                        <div className="bg-card border rounded-lg shadow-lg p-2 text-xs max-w-[160px]">
+                          <p className="font-semibold leading-snug">{org?.organizationName || 'Unknown'}</p>
+                          <p className="text-muted-foreground">Score: <strong>{a.overallCapacityScore}</strong></p>
+                        </div>
+                      );
+                    }}
+                  />
+                  <Bar dataKey="overallCapacityScore" radius={[3, 3, 0, 0]}>
+                    {sortedForBar.map((a, i) => (
+                      <Cell key={i} fill={
+                        a.overallCapacityScore >= 68 ? '#22c55e' :
+                        a.overallCapacityScore >= 40 ? '#eab308' : '#ef4444'
+                      } />
                     ))}
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <p className="text-sm text-muted-foreground py-8 text-center">No assessments yet</p>
+              <p className="text-sm text-muted-foreground py-6 text-center">No assessments yet</p>
             )}
+            <p className="text-[10px] text-muted-foreground mt-2">Each bar = one organization, sorted by score ascending</p>
           </CardContent>
         </Card>
 
-        {/* Average */}
-        <Card>
+        {/* Review queue */}
+        <Card className={reviewQueue > 0 ? 'border-yellow-200 bg-yellow-50/40' : ''}>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold">Average Capacity Score</CardTitle>
+            <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center justify-between">
+              <span>Review Queue</span>
+              <ClipboardCheck className={`w-4 h-4 ${reviewQueue > 0 ? 'text-yellow-500' : 'text-muted-foreground'}`} />
+            </CardTitle>
           </CardHeader>
-          <CardContent className="flex flex-col items-center justify-center py-4">
-            <div className={`text-5xl font-bold ${avgScore >= 70 ? 'text-green-600' : avgScore >= 40 ? 'text-yellow-600' : 'text-red-600'}`}>
-              {avgScore}
+          <CardContent className="flex flex-col items-center justify-center py-4 gap-3">
+            <div className={`text-5xl font-bold ${reviewQueue > 0 ? 'text-yellow-600' : 'text-green-600'}`}>
+              {reviewQueue}
             </div>
-            <p className="text-xs text-muted-foreground mt-2">out of 100</p>
+            <p className="text-xs text-muted-foreground text-center">
+              {reviewQueue > 0
+                ? 'assessment(s) awaiting human validation'
+                : 'All assessments are reviewed and current'}
+            </p>
+            <Link to="/review-queue" className="w-full">
+              <Button variant="outline" size="sm" className="w-full text-xs gap-1">
+                Open Review Queue <ArrowRight className="w-3 h-3" />
+              </Button>
+            </Link>
           </CardContent>
         </Card>
       </div>
 
-      {/* Top Flagged */}
-      <Card>
-        <CardHeader className="pb-3 flex flex-row items-center justify-between">
-          <CardTitle className="text-sm font-semibold">Top Flagged Organizations</CardTitle>
-          <Link to="/review-queue">
-            <Button variant="ghost" size="sm" className="text-xs gap-1">
-              View Queue <ArrowRight className="w-3 h-3" />
-            </Button>
-          </Link>
-        </CardHeader>
-        <CardContent>
-          {topFlagged.length > 0 ? (
-            <div className="space-y-3">
-              {topFlagged.map(a => {
+      {/* Top Flagged Organizations */}
+      {topFlagged.length > 0 && (
+        <Card>
+          <CardHeader className="pb-2 flex flex-row items-center justify-between">
+            <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+              Flagged Organizations
+            </CardTitle>
+            <Link to="/review-queue">
+              <Button variant="ghost" size="sm" className="text-xs gap-1 h-7">
+                View All <ArrowRight className="w-3 h-3" />
+              </Button>
+            </Link>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="divide-y divide-border">
+              {topFlagged.map((a, idx) => {
                 const org = orgMap[a.organizationId];
+                const score = a.overallCapacityScore;
+                const scoreColor =
+                  score >= 68 ? 'text-green-600' :
+                  score >= 40 ? 'text-yellow-600' : 'text-red-600';
                 return (
-                  <Link key={a.id} to={`/organizations/${a.organizationId}`}
-                    className="flex items-center gap-4 p-3 rounded-lg border hover:bg-muted/50 transition-colors">
+                  <Link
+                    key={a.id}
+                    to={`/organizations/${a.organizationId}`}
+                    className="flex items-center gap-4 px-6 py-3 hover:bg-muted/40 transition-colors group"
+                  >
+                    <span className="text-xs text-muted-foreground w-4 font-mono">{idx + 1}</span>
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm truncate">{org?.organizationName || 'Unknown'}</p>
-                      <p className="text-xs text-muted-foreground">{org?.organizationType} · {org?.jurisdiction}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className={`text-lg font-bold ${a.overallCapacityScore >= 70 ? 'text-green-600' : a.overallCapacityScore >= 40 ? 'text-yellow-600' : 'text-red-600'}`}>
-                        {a.overallCapacityScore}
+                      <p className="font-semibold text-sm truncate group-hover:text-primary transition-colors">
+                        {org?.organizationName || 'Unknown'}
+                      </p>
+                      <p className="text-xs text-muted-foreground capitalize">
+                        {org?.organizationType} · {org?.jurisdiction}
                       </p>
                     </div>
-                    <RiskBadge level={a.riskLevel} />
+                    {a.aiSummary && (
+                      <p className="hidden md:block text-xs text-muted-foreground max-w-xs truncate flex-1">
+                        {a.aiSummary}
+                      </p>
+                    )}
+                    <div className="flex items-center gap-3 flex-shrink-0">
+                      <span className={`text-xl font-bold tabular-nums ${scoreColor}`}>{score}</span>
+                      <RiskBadge level={a.riskLevel} />
+                      <ChevronRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </div>
                   </Link>
                 );
               })}
             </div>
-          ) : (
-            <p className="text-sm text-muted-foreground py-4 text-center">No flagged organizations</p>
-          )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Disclaimer */}
+      <p className="text-xs text-muted-foreground border-t border-border pt-4">
+        <strong>Notice:</strong> This tool provides early-warning assessments based on structured indicators and evidence. It does not determine fraud, misconduct, or legal non-compliance. All flagged cases require human review before any funding decision is made.
+      </p>
     </div>
   );
 }
