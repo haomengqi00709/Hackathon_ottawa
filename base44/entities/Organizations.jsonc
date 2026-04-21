@@ -1,0 +1,82 @@
+{
+  "name": "Organizations",
+  "type": "object",
+  "properties": {
+    "organizationName": {
+      "type": "string",
+      "description": "Name of the organization"
+    },
+    "organizationType": {
+      "type": "string",
+      "enum": [
+        "nonprofit",
+        "charity",
+        "company",
+        "cooperative",
+        "other"
+      ],
+      "description": "Type of organization"
+    },
+    "registrationNumber": {
+      "type": "string",
+      "description": "Official registration number"
+    },
+    "jurisdiction": {
+      "type": "string",
+      "description": "Jurisdiction of registration"
+    },
+    "activeStatus": {
+      "type": "string",
+      "enum": [
+        "active",
+        "dissolved",
+        "inactive",
+        "unknown"
+      ],
+      "default": "active",
+      "description": "Current operational status"
+    },
+    "website": {
+      "type": "string",
+      "description": "Organization website URL"
+    },
+    "physicalPresenceStatus": {
+      "type": "string",
+      "enum": [
+        "confirmed",
+        "limited",
+        "none",
+        "unknown"
+      ],
+      "description": "Whether the organization has verified physical presence"
+    },
+    "address": {
+      "type": "string",
+      "description": "Physical address"
+    },
+    "employeeCount": {
+      "type": "number",
+      "description": "Number of employees"
+    },
+    "volunteerCount": {
+      "type": "number",
+      "description": "Number of volunteers"
+    },
+    "yearFounded": {
+      "type": "number",
+      "description": "Year the organization was founded"
+    },
+    "missionDescription": {
+      "type": "string",
+      "description": "Mission statement or description"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Additional notes"
+    }
+  },
+  "required": [
+    "organizationName",
+    "organizationType"
+  ]
+}

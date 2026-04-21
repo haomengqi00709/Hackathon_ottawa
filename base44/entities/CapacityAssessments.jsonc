@@ -1,0 +1,85 @@
+{
+  "name": "CapacityAssessments",
+  "type": "object",
+  "properties": {
+    "organizationId": {
+      "type": "string",
+      "description": "Related organization ID"
+    },
+    "assessmentDate": {
+      "type": "string",
+      "format": "date",
+      "description": "Date of assessment"
+    },
+    "staffingScore": {
+      "type": "number",
+      "description": "Staffing adequacy score 0-100"
+    },
+    "infrastructureScore": {
+      "type": "number",
+      "description": "Infrastructure presence score 0-100"
+    },
+    "revenueDiversityScore": {
+      "type": "number",
+      "description": "Revenue diversity score 0-100"
+    },
+    "programExpenseScore": {
+      "type": "number",
+      "description": "Program expense ratio score 0-100"
+    },
+    "dependencyScore": {
+      "type": "number",
+      "description": "Government dependency score 0-100"
+    },
+    "deliveryPlausibilityScore": {
+      "type": "number",
+      "description": "Delivery plausibility score 0-100"
+    },
+    "overallCapacityScore": {
+      "type": "number",
+      "description": "Overall capacity score 0-100"
+    },
+    "riskLevel": {
+      "type": "string",
+      "enum": [
+        "low",
+        "moderate",
+        "high"
+      ],
+      "description": "Risk level classification"
+    },
+    "aiSummary": {
+      "type": "string",
+      "description": "AI-generated plain language summary"
+    },
+    "explanationFactors": {
+      "type": "string",
+      "description": "JSON string of explanation factors"
+    },
+    "humanReviewRequired": {
+      "type": "boolean",
+      "description": "Whether human review is required"
+    },
+    "benchmarkCategory": {
+      "type": "string",
+      "description": "Benchmark category used for assessment"
+    },
+    "reviewerStatus": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "needs_review",
+        "validated",
+        "watchlist",
+        "closed"
+      ],
+      "default": "pending",
+      "description": "Current review status"
+    }
+  },
+  "required": [
+    "organizationId",
+    "overallCapacityScore",
+    "riskLevel"
+  ]
+}

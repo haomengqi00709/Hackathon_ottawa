@@ -1,0 +1,51 @@
+{
+  "name": "ReviewDecisions",
+  "type": "object",
+  "properties": {
+    "organizationId": {
+      "type": "string",
+      "description": "Related organization ID"
+    },
+    "assessmentId": {
+      "type": "string",
+      "description": "Related assessment ID"
+    },
+    "reviewerName": {
+      "type": "string",
+      "description": "Name of the reviewer"
+    },
+    "decisionDate": {
+      "type": "string",
+      "format": "date",
+      "description": "Date of review decision"
+    },
+    "finalDecision": {
+      "type": "string",
+      "enum": [
+        "no_concern",
+        "monitor",
+        "conditional_funding",
+        "further_review",
+        "do_not_renew"
+      ],
+      "description": "Final review decision"
+    },
+    "rationale": {
+      "type": "string",
+      "description": "Rationale for the decision"
+    },
+    "overrideReason": {
+      "type": "string",
+      "description": "Reason for overriding AI assessment"
+    },
+    "followUpAction": {
+      "type": "string",
+      "description": "Follow-up actions required"
+    }
+  },
+  "required": [
+    "organizationId",
+    "finalDecision",
+    "rationale"
+  ]
+}

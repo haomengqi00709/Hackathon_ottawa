@@ -1,0 +1,68 @@
+{
+  "name": "FinancialIndicators",
+  "type": "object",
+  "properties": {
+    "organizationId": {
+      "type": "string",
+      "description": "Related organization ID"
+    },
+    "fiscalYear": {
+      "type": "string",
+      "description": "Fiscal year"
+    },
+    "totalRevenue": {
+      "type": "number",
+      "description": "Total revenue"
+    },
+    "governmentRevenue": {
+      "type": "number",
+      "description": "Revenue from government sources"
+    },
+    "earnedRevenue": {
+      "type": "number",
+      "description": "Revenue from earned sources"
+    },
+    "donationsRevenue": {
+      "type": "number",
+      "description": "Revenue from donations"
+    },
+    "otherRevenue": {
+      "type": "number",
+      "description": "Revenue from other sources"
+    },
+    "totalExpenses": {
+      "type": "number",
+      "description": "Total expenses"
+    },
+    "compensationExpense": {
+      "type": "number",
+      "description": "Compensation and salary expenses"
+    },
+    "programExpense": {
+      "type": "number",
+      "description": "Program delivery expenses"
+    },
+    "transferToOtherEntities": {
+      "type": "number",
+      "description": "Transfers to other entities"
+    },
+    "adminExpense": {
+      "type": "number",
+      "description": "Administrative expenses"
+    },
+    "latestFilingStatus": {
+      "type": "string",
+      "enum": [
+        "current",
+        "late",
+        "missing",
+        "unknown"
+      ],
+      "description": "Status of latest financial filing"
+    }
+  },
+  "required": [
+    "organizationId",
+    "fiscalYear"
+  ]
+}

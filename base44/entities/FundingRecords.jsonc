@@ -1,0 +1,47 @@
+{
+  "name": "FundingRecords",
+  "type": "object",
+  "properties": {
+    "organizationId": {
+      "type": "string",
+      "description": "Related organization ID"
+    },
+    "fundingProgramName": {
+      "type": "string",
+      "description": "Name of the funding program"
+    },
+    "fundingSource": {
+      "type": "string",
+      "description": "Source of funding"
+    },
+    "fiscalYear": {
+      "type": "string",
+      "description": "Fiscal year"
+    },
+    "fundingAmount": {
+      "type": "number",
+      "description": "Amount of funding received"
+    },
+    "fundingPurpose": {
+      "type": "string",
+      "description": "Purpose of the funding"
+    },
+    "expectedDeliverables": {
+      "type": "string",
+      "description": "What the organization is expected to deliver"
+    },
+    "reportingPeriodMonths": {
+      "type": "number",
+      "description": "Reporting period in months"
+    },
+    "renewalEligible": {
+      "type": "boolean",
+      "description": "Whether renewal is eligible"
+    }
+  },
+  "required": [
+    "organizationId",
+    "fundingProgramName",
+    "fundingAmount"
+  ]
+}

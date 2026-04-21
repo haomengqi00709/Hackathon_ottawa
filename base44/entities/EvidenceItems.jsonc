@@ -1,0 +1,62 @@
+{
+  "name": "EvidenceItems",
+  "type": "object",
+  "properties": {
+    "organizationId": {
+      "type": "string",
+      "description": "Related organization ID"
+    },
+    "evidenceType": {
+      "type": "string",
+      "enum": [
+        "filing",
+        "website",
+        "media",
+        "staffing",
+        "address",
+        "financial",
+        "other"
+      ],
+      "description": "Type of evidence"
+    },
+    "title": {
+      "type": "string",
+      "description": "Evidence title"
+    },
+    "source": {
+      "type": "string",
+      "description": "Source of evidence"
+    },
+    "sourceDate": {
+      "type": "string",
+      "format": "date",
+      "description": "Date of evidence source"
+    },
+    "uploadFile": {
+      "type": "string",
+      "description": "URL to uploaded file"
+    },
+    "extractedSummary": {
+      "type": "string",
+      "description": "Summary extracted from evidence"
+    },
+    "reliabilityRating": {
+      "type": "string",
+      "enum": [
+        "high",
+        "medium",
+        "low"
+      ],
+      "description": "Reliability rating of evidence"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Additional notes"
+    }
+  },
+  "required": [
+    "organizationId",
+    "evidenceType",
+    "title"
+  ]
+}

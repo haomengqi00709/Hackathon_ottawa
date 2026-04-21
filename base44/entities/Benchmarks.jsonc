@@ -1,0 +1,39 @@
+{
+  "name": "Benchmarks",
+  "type": "object",
+  "properties": {
+    "benchmarkCategory": {
+      "type": "string",
+      "description": "Category name for the benchmark"
+    },
+    "minimumExpectedEmployees": {
+      "type": "number",
+      "description": "Minimum expected employees for this category"
+    },
+    "minimumInfrastructureLevel": {
+      "type": "string",
+      "enum": [
+        "none",
+        "light",
+        "moderate",
+        "significant"
+      ],
+      "description": "Minimum expected infrastructure level"
+    },
+    "expectedProgramExpenseRatio": {
+      "type": "number",
+      "description": "Expected program expense ratio (0-1)"
+    },
+    "maxGovernmentDependencyRatio": {
+      "type": "number",
+      "description": "Maximum acceptable government dependency ratio (0-1)"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Notes about this benchmark"
+    }
+  },
+  "required": [
+    "benchmarkCategory"
+  ]
+}
