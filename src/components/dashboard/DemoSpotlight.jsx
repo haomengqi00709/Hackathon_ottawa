@@ -1,0 +1,112 @@
+import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
+import { ChevronRight, Presentation, X, AlertTriangle, CheckCircle2, ShieldX } from 'lucide-react';
+
+const DEMO_ORGS = [
+  {
+    id: '69e7f9099606b8721190163e',
+    name: 'Northbridge Youth Futures',
+    score: 82,
+    risk: 'low',
+    tagline: 'The Benchmark Case',
+    description: '14 staff, confirmed office, 60% program spend. This is what a well-run recipient looks like — use it as your baseline.',
+    scoreColor: 'text-green-600',
+    borderColor: 'border-green-200',
+    bg: 'bg-green-50',
+    badgeBg: 'bg-green-100 text-green-800',
+    Icon: CheckCircle2,
+    iconClass: 'text-green-500',
+    talking_points: ['Confirmed physical address', 'CRA T4 confirms 14 employees', '60% of spend reaches programs'],
+  },
+  {
+    id: '69e7f9099606b8721190163f',
+    name: 'Clearpath Community Services Inc.',
+    score: 16,
+    risk: 'high',
+    tagline: 'The Pass-Through Concern',
+    description: '$1.4M received. 2 employees. PO Box address. 60% of expenses transferred to undisclosed entities. Filed late.',
+    scoreColor: 'text-red-600',
+    borderColor: 'border-red-200',
+    bg: 'bg-red-50',
+    badgeBg: 'bg-red-100 text-red-800',
+    Icon: AlertTriangle,
+    iconClass: 'text-red-500',
+    talking_points: ['Only a PO Box — no office found', '$820K transferred to unknown entities', 'Incorporated as a for-profit company'],
+  },
+  {
+    id: '69e7f9099606b87211901640',
+    name: 'Horizon Multicultural Alliance',
+    score: 11,
+    risk: 'high',
+    tagline: 'The Ghost Organization',
+    description: 'Legally inactive. Zero employees. Website offline. No financial filings in 2 years. Still receiving $675K in public funding.',
+    scoreColor: 'text-red-600',
+    borderColor: 'border-red-200',
+    bg: 'bg-red-50',
+    badgeBg: 'bg-red-100 text-red-800',
+    Icon: ShieldX,
+    iconClass: 'text-red-500',
+    talking_points: ['Alberta registry: status = inactive', 'Website offline since Nov 2023', 'Zero employees, $675K received'],
+  },
+];
+
+export default function DemoSpotlight() {
+  const [dismissed, setDismissed] = useState(false);
+  if (dismissed) return null;
+
+  return (
+    <div className="rounded-xl border border-primary/20 bg-primary/5 overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-primary/15 bg-primary/10">
+        <div className="flex items-center gap-2">
+          <Presentation className="w-4 h-4 text-primary" />
+          <span className="text-xs font-bold uppercase tracking-widest text-primary">Demo Scenario — 3 Fictional Organizations</span>
+        </div>
+        <button onClick={() => setDismissed(true)} className="text-muted-foreground hover:text-foreground transition-colors">
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+
+      {/* Cards */}
+      <div className="grid md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-border">
+        {DEMO_ORGS.map((org) => {
+          const Icon = org.Icon;
+          return (
+            <div key={org.id} className="p-4 flex flex-col gap-3">
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <span className={`inline-block text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full mb-1.5 ${org.badgeBg}`}>
+                    {org.tagline}
+                  </span>
+                  <p className="font-semibold text-sm leading-snug">{org.name}</p>
+                </div>
+                <div className="flex flex-col items-center flex-shrink-0">
+                  <span className={`text-2xl font-bold tabular-nums leading-none ${org.scoreColor}`}>{org.score}</span>
+                  <span className="text-[10px] text-muted-foreground">/100</span>
+                </div>
+              </div>
+
+              <p className="text-xs text-muted-foreground leading-relaxed">{org.description}</p>
+
+              <ul className="space-y-1">
+                {org.talking_points.map((pt, i) => (
+                  <li key={i} className="flex items-start gap-1.5 text-xs">
+                    <Icon className={`w-3 h-3 flex-shrink-0 mt-0.5 ${org.iconClass}`} />
+                    <span>{pt}</span>
+                  </li>
+                ))}
+              </ul>
+
+              <Link
+                to={`/organizations/${org.id}`}
+                className={`mt-auto inline-flex items-center justify-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors ${org.bg} ${org.borderColor} hover:opacity-80`}
+              >
+                Open Profile <ChevronRight className="w-3.5 h-3.5" />
+              </Link>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}

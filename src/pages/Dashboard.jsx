@@ -10,6 +10,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip } from 'recharts';
 import RiskBadge from '@/components/shared/RiskBadge';
+import DemoSpotlight from '@/components/dashboard/DemoSpotlight';
 
 function StatPill({ title, value, sub, color }) {
   return (
@@ -149,6 +150,9 @@ export default function Dashboard() {
           {latest.length} of {orgs.length} organizations assessed
         </p>
       </div>
+
+      {/* Demo Spotlight */}
+      <DemoSpotlight />
 
       {/* Executive Insights */}
       {insights.length > 0 && (
