@@ -31,25 +31,25 @@ const STATUS_STYLES = {
 
 // Decision options — grouped by type for the reviewer
 const DECISION_OPTIONS = [
-  {
-    group: 'Confirm AI Finding',
-    icon: ShieldAlert,
-    iconClass: 'text-red-500',
-    options: [
-      { value: 'do_not_renew',       label: 'Do Not Renew',        desc: 'Confirm the AI finding — capacity concerns are significant enough to recommend non-renewal.' },
-      { value: 'further_review',     label: 'Escalate for Further Review', desc: 'Confirm concern exists, but requires additional investigation before a final decision.' },
-      { value: 'conditional_funding',label: 'Conditional Funding',  desc: 'Funding may proceed, but with explicit conditions tied to the identified capacity gaps.' },
-    ]
-  },
-  {
-    group: 'Modify AI Finding',
-    icon: ShieldCheck,
-    iconClass: 'text-yellow-500',
-    options: [
-      { value: 'monitor',            label: 'Monitor',              desc: 'Downgrade the risk — the organization shows some concern but does not require immediate action.' },
-      { value: 'no_concern',         label: 'No Concern (Override)', desc: 'Override the AI assessment entirely. The organization has sufficient capacity. Override rationale is required.' },
-    ]
-  },
+{
+  group: 'Concur with Assessment Finding',
+  icon: ShieldAlert,
+  iconClass: 'text-red-500',
+  options: [
+    { value: 'do_not_renew',       label: 'Do Not Renew',                  desc: 'Concur with the assessment finding. Identified capacity indicators are insufficient to support renewal recommendation.' },
+    { value: 'further_review',     label: 'Refer for Further Review',       desc: 'Concur that concern exists. Additional enquiry or documentation is required before a final determination.' },
+    { value: 'conditional_funding',label: 'Conditional Continuation',       desc: 'Funding may continue subject to explicit conditions addressing identified capacity shortfalls.' },
+  ]
+},
+{
+  group: 'Depart from Assessment Finding',
+  icon: ShieldCheck,
+  iconClass: 'text-yellow-500',
+  options: [
+    { value: 'monitor',            label: 'Monitor — Reduced Concern',      desc: 'Reviewer determines that concern is present but does not warrant the assessed classification. Ongoing monitoring is appropriate.' },
+    { value: 'no_concern',         label: 'No Concern — Assessment Override', desc: 'Reviewer determines the assessment does not reflect available evidence. A documented override rationale is required.' },
+  ]
+},
 ];
 
 const DECISION_STATUS_MAP = {
@@ -87,10 +87,10 @@ function ReviewDialog({ assessment, org, onClose, onSubmit, isPending }) {
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <ClipboardCheck className="w-5 h-5" />
-            Human Review — {org?.organizationName}
+            Reviewer Decision — {org?.organizationName}
           </DialogTitle>
           <DialogDescription>
-            Record a formal review decision. This will be permanently logged and cannot be undone.
+            Record a formal reviewer decision. This entry will be retained as part of the permanent audit trail.
           </DialogDescription>
         </DialogHeader>
 
@@ -108,7 +108,7 @@ function ReviewDialog({ assessment, org, onClose, onSubmit, isPending }) {
           )}
           {highFactors.length > 0 && (
             <div className="space-y-1.5">
-              <p className="text-xs font-medium text-muted-foreground">High-severity flags:</p>
+              <p className="text-xs font-medium text-muted-foreground">Factors rated high concern:</p>
               {highFactors.map((f, i) => (
                 <div key={i} className="flex items-start gap-2 text-xs bg-red-50 border border-red-200 rounded-md px-2.5 py-1.5">
                   <AlertTriangle className="w-3.5 h-3.5 text-red-500 flex-shrink-0 mt-0.5" />
@@ -176,13 +176,13 @@ function ReviewDialog({ assessment, org, onClose, onSubmit, isPending }) {
               </Label>
               <p className="text-xs text-yellow-700 mb-1.5 flex items-start gap-1.5">
                 <Info className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
-                You are overriding or downgrading an automated finding. Explain specifically what evidence justifies departing from the system's recommendation.
+                The selected decision departs from the system-generated finding. Please document the specific evidence or professional judgment that supports this determination.
               </p>
               <Textarea
                 value={form.overrideReason}
                 onChange={e => setForm(p => ({ ...p, overrideReason: e.target.value }))}
                 rows={3}
-                placeholder="e.g. Site visit confirmed an active office and 12 staff not reflected in registry data. Deliverable scope was mischaracterised in the funding application..."
+                placeholder="e.g. Site visit conducted [date] confirmed operational premises and staffing not reflected in registry records. Documentary evidence reviewed and retained on file..."
               />
             </div>
           )}
@@ -197,7 +197,7 @@ function ReviewDialog({ assessment, org, onClose, onSubmit, isPending }) {
               value={form.rationale}
               onChange={e => setForm(p => ({ ...p, rationale: e.target.value }))}
               rows={4}
-              placeholder="Provide a clear, documented rationale for your decision. This record will be retained for audit purposes..."
+              placeholder="Provide a clear and documented basis for this decision. This record will be retained in the audit trail and may be subject to further review..."
             />
           </div>
 
@@ -208,7 +208,7 @@ function ReviewDialog({ assessment, org, onClose, onSubmit, isPending }) {
               value={form.followUpAction}
               onChange={e => setForm(p => ({ ...p, followUpAction: e.target.value }))}
               rows={2}
-              placeholder="e.g. Request updated staffing roster by June 30. Schedule site visit Q3..."
+              placeholder="e.g. Request updated staffing register by [date]. Schedule compliance site visit in Q3. Obtain audited financial statements for current fiscal year..."
             />
           </div>
         </div>
@@ -285,18 +285,18 @@ export default function ReviewQueue() {
   return (
     <div className="space-y-6 max-w-5xl">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Review Queue</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Reviewer Decision Queue</h1>
         <p className="text-sm text-muted-foreground mt-0.5">
-          Moderate and high-risk assessments require a documented human review before any funding decision.
+          Assessments classified as moderate or high concern require a documented reviewer decision before any funding determination is made.
         </p>
       </div>
 
       {/* Summary bar */}
       <div className="grid grid-cols-3 gap-3">
         {[
-          { label: 'Awaiting Review', value: pendingCount, color: 'text-orange-600', bg: 'bg-orange-50 border-orange-200' },
-          { label: 'Watchlist',       value: watchlistCount, color: 'text-yellow-600', bg: 'bg-yellow-50 border-yellow-200' },
-          { label: 'Resolved',        value: closedCount, color: 'text-green-600', bg: 'bg-green-50 border-green-200' },
+          { label: 'Pending Decision', value: pendingCount, color: 'text-orange-600', bg: 'bg-orange-50 border-orange-200' },
+          { label: 'Under Monitoring', value: watchlistCount, color: 'text-yellow-600', bg: 'bg-yellow-50 border-yellow-200' },
+          { label: 'Decision Recorded', value: closedCount, color: 'text-green-600', bg: 'bg-green-50 border-green-200' },
         ].map(s => (
           <div key={s.label} className={`rounded-xl border p-4 ${s.bg}`}>
             <p className="text-xs text-muted-foreground font-medium">{s.label}</p>
@@ -311,15 +311,15 @@ export default function ReviewQueue() {
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-52"><SelectValue /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="needs_review">Needs Review</SelectItem>
-            <SelectItem value="pending">Pending</SelectItem>
-            <SelectItem value="watchlist">Watchlist</SelectItem>
-            <SelectItem value="validated">Validated / Overridden</SelectItem>
+            <SelectItem value="needs_review">Awaiting Decision</SelectItem>
+            <SelectItem value="pending">Pending Assessment</SelectItem>
+            <SelectItem value="watchlist">Under Monitoring</SelectItem>
+            <SelectItem value="validated">Reviewed — No Concern</SelectItem>
             <SelectItem value="closed">Closed</SelectItem>
             <SelectItem value="all">All Statuses</SelectItem>
           </SelectContent>
         </Select>
-        <span className="text-xs text-muted-foreground">{queue.length} case{queue.length !== 1 ? 's' : ''}</span>
+        <span className="text-xs text-muted-foreground">{queue.length} record{queue.length !== 1 ? 's' : ''}</span>
       </div>
 
       {/* Queue items */}
@@ -406,8 +406,8 @@ export default function ReviewQueue() {
           <Card>
             <CardContent className="py-14 text-center space-y-2">
               <ShieldCheck className="w-8 h-8 text-muted-foreground mx-auto" />
-              <p className="text-sm font-medium">No cases in this category</p>
-              <p className="text-xs text-muted-foreground">Switch the filter to see other statuses.</p>
+              <p className="text-sm font-medium">No records in this category</p>
+              <p className="text-xs text-muted-foreground">Adjust the status filter to view records in other categories.</p>
             </CardContent>
           </Card>
         )}

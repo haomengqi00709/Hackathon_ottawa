@@ -92,9 +92,9 @@ export default function AssessmentPanel({ assessment, onRecordDecision }) {
         <div className="flex items-start gap-3 rounded-xl border border-orange-300 bg-orange-50 p-4">
           <ShieldAlert className="w-5 h-5 text-orange-500 flex-shrink-0 mt-0.5" />
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-orange-800">Human Review Required</p>
+            <p className="text-sm font-semibold text-orange-800">Reviewer Decision Required</p>
             <p className="text-xs text-orange-700 mt-0.5">
-              This assessment is flagged as {assessment.riskLevel} concern. A reviewer must confirm, downgrade, or override this finding before any funding decision is made.
+              This assessment has been classified as {assessment.riskLevel} concern. A documented reviewer decision is required before any funding determination is made.
             </p>
           </div>
           {onRecordDecision && (
@@ -114,7 +114,7 @@ export default function AssessmentPanel({ assessment, onRecordDecision }) {
                 <Info className="w-4 h-4" /> Capacity Score Breakdown
               </CardTitle>
               <p className="text-xs text-muted-foreground mt-1">
-                Each component is weighted by its relevance to funding-capacity mismatch. Hover <HelpCircle className="inline w-3 h-3 mb-0.5" /> for methodology.
+                Each component is weighted according to its relevance as an indicator of funding–capacity alignment. Select <HelpCircle className="inline w-3 h-3 mb-0.5" /> to view the methodology for each dimension.
               </p>
             </div>
             <div className="text-right flex-shrink-0">
@@ -130,7 +130,7 @@ export default function AssessmentPanel({ assessment, onRecordDecision }) {
             <ScoreBar key={key} scoreKey={key} value={assessment[key]} />
           ))}
           <p className="text-[10px] text-muted-foreground pt-1 border-t border-border">
-            Score of 68–100 = Low concern · 40–67 = Moderate · Below 40 = High concern
+            68–100 = Low concern · 40–67 = Moderate concern · 0–39 = High concern
           </p>
         </CardContent>
       </Card>
@@ -139,7 +139,7 @@ export default function AssessmentPanel({ assessment, onRecordDecision }) {
       {assessment.aiSummary && (
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-semibold">AI Assessment Summary</CardTitle>
+            <CardTitle className="text-sm font-semibold">Assessment Narrative</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-sm leading-relaxed text-muted-foreground">{assessment.aiSummary}</p>
@@ -151,7 +151,7 @@ export default function AssessmentPanel({ assessment, onRecordDecision }) {
       {factors.length > 0 && (
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-semibold">Scoring Rationale</CardTitle>
+            <CardTitle className="text-sm font-semibold">Indicator Findings</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
             {[...highFactors, ...otherFactors].map((f, i) => {

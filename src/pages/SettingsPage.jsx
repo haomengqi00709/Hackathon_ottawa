@@ -8,13 +8,13 @@ export default function SettingsPage() {
     <div className="max-w-3xl mx-auto space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
-        <p className="text-sm text-muted-foreground">System configuration and scoring parameters</p>
+        <p className="text-sm text-muted-foreground">System configuration, scoring methodology, and access controls</p>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2"><Sliders className="w-4 h-4" /> Scoring Thresholds</CardTitle>
-          <CardDescription>Current risk classification thresholds</CardDescription>
+          <CardTitle className="text-base flex items-center gap-2"><Sliders className="w-4 h-4" /> Risk Classification Thresholds</CardTitle>
+          <CardDescription>Score ranges used to determine capacity concern levels</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-3 gap-4">

@@ -34,7 +34,7 @@ export default function AppLayout() {
             </div>
             <div>
               <h1 className="font-semibold text-sm tracking-tight text-sidebar-primary">Proof of Capacity</h1>
-              <p className="text-[10px] text-sidebar-foreground/50 uppercase tracking-widest">Engine</p>
+              <p className="text-[10px] text-sidebar-foreground/50 uppercase tracking-widest">Assessment System</p>
             </div>
           </div>
         </div>
@@ -64,9 +64,9 @@ export default function AppLayout() {
 
         <div className="p-4 border-t border-sidebar-border">
           <div className="px-3 py-2 rounded-lg bg-sidebar-accent/50">
-            <p className="text-[10px] text-sidebar-foreground/50 uppercase tracking-wider mb-1">Disclaimer</p>
+            <p className="text-[10px] text-sidebar-foreground/50 uppercase tracking-wider mb-1">Notice</p>
             <p className="text-[11px] text-sidebar-foreground/60 leading-relaxed">
-              This tool provides early-warning assessments. It does not determine fraud or misconduct.
+              Assessments are indicative only. They do not constitute a determination of misconduct or legal non-compliance.
             </p>
           </div>
         </div>
@@ -81,7 +81,7 @@ export default function AppLayout() {
           <div className="flex-1" />
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-            Prototype Mode
+            Pre-Deployment Review Build
           </div>
         </header>
         <main className="flex-1 p-4 lg:p-6 overflow-auto">

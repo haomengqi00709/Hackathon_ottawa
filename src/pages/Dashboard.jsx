@@ -34,20 +34,20 @@ function deriveInsights({ orgs, latest, highCount, modCount, reviewQueue, avgSco
       .join(' and ');
     insights.push({
       severity: 'high',
-      label: 'Immediate Review Required',
-      text: `${highCount} organization${highCount > 1 ? 's' : ''} scored below 40, indicating a significant mismatch between funding and observable delivery capacity. ${names ? `Notable: ${names}.` : ''}`
+      label: 'Reviewer Action Required',
+      text: `${highCount} recipient organization${highCount > 1 ? 's' : ''} scored below 40, indicating a material discrepancy between funding levels and observable operational capacity. ${names ? `Refer for review: ${names}.` : ''}`
     });
   } else if (modCount > 0) {
     insights.push({
       severity: 'moderate',
-      label: 'Elevated Concern',
-      text: `No organizations are currently in the high-risk band, but ${modCount} are flagged as moderate concern and warrant close monitoring before renewal decisions.`
+      label: 'Moderate Concern Identified',
+      text: `No organizations currently meet the threshold for high-concern classification. However, ${modCount} present indicators warranting closer monitoring ahead of renewal decisions.`
     });
   } else {
     insights.push({
       severity: 'low',
-      label: 'Portfolio in Good Standing',
-      text: `All assessed organizations currently fall in the low-concern band. No immediate capacity flags have been identified.`
+      label: 'No Active Concerns',
+      text: `All assessed organizations fall within the low-concern band. No capacity indicators requiring immediate attention have been identified.`
     });
   }
 
@@ -55,14 +55,14 @@ function deriveInsights({ orgs, latest, highCount, modCount, reviewQueue, avgSco
   if (reviewQueue > 0) {
     insights.push({
       severity: reviewQueue >= 3 ? 'moderate' : 'low',
-      label: 'Review Queue',
-      text: `${reviewQueue} assessment${reviewQueue > 1 ? 's' : ''} ${reviewQueue > 1 ? 'are' : 'is'} pending human validation. Timely review ensures decisions are documented before the next funding cycle.`
+      label: 'Pending Reviewer Actions',
+      text: `${reviewQueue} assessment${reviewQueue > 1 ? 's' : ''} ${reviewQueue > 1 ? 'are' : 'is'} awaiting formal reviewer sign-off. Decisions should be recorded prior to the next funding determination.`
     });
   } else {
     insights.push({
       severity: 'low',
-      label: 'Review Queue Clear',
-      text: 'All flagged assessments have been reviewed. The human validation workflow is current.'
+      label: 'Review Workflow Current',
+      text: 'All flagged assessments have received a recorded reviewer decision. No outstanding actions are pending.'
     });
   }
 
@@ -72,19 +72,19 @@ function deriveInsights({ orgs, latest, highCount, modCount, reviewQueue, avgSco
   if (unassessed > 0) {
     insights.push({
       severity: 'moderate',
-      label: 'Coverage Gap',
-      text: `${unassessed} of ${orgs.length} organizations have not yet been assessed. Incomplete coverage limits portfolio-level risk visibility.`
+      label: 'Assessment Coverage Incomplete',
+      text: `${unassessed} of ${orgs.length} registered organizations have not yet been assessed. Gaps in coverage limit the reliability of portfolio-level reporting.`
     });
   } else if (avgScore > 0) {
     insights.push({
       severity: avgScore >= 68 ? 'low' : avgScore >= 40 ? 'moderate' : 'high',
       label: 'Portfolio Average Score',
-      text: `The average capacity score across all ${assessed} assessed organizations is ${avgScore}/100. ${
+      text: `The mean capacity score across all ${assessed} assessed organizations is ${avgScore}/100. ${
         avgScore >= 68
-          ? 'The overall portfolio appears adequately resourced relative to commitments.'
+          ? 'The overall portfolio demonstrates sufficient operational capacity relative to stated commitments.'
           : avgScore >= 40
-          ? 'The portfolio average sits in the moderate-concern band — consider a systemic review of benchmarks.'
-          : 'The portfolio average is in the high-concern band, suggesting structural capacity issues across multiple recipients.'
+          ? 'The portfolio average falls within the moderate-concern range. A systemic review of benchmarks or recipient profiles may be warranted.'
+          : 'The portfolio average falls within the high-concern range, suggesting capacity shortfalls across multiple recipient organizations.'
       }`
     });
   }
@@ -143,7 +143,7 @@ export default function Dashboard() {
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Capacity Assessment Dashboard</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Early-warning monitoring of organizational capacity against funding commitments</p>
+          <p className="text-sm text-muted-foreground mt-0.5">Structured monitoring of recipient organizational capacity relative to funding commitments and stated deliverables</p>
         </div>
         <p className="text-xs text-muted-foreground sm:text-right">
           {latest.length} of {orgs.length} organizations assessed
@@ -155,7 +155,7 @@ export default function Dashboard() {
         <div>
           <div className="flex items-center gap-2 mb-3">
             <Lightbulb className="w-4 h-4 text-muted-foreground" />
-            <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Executive Takeaways</h2>
+            <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Portfolio Summary</h2>
           </div>
           <div className="grid sm:grid-cols-3 gap-3">
             {insights.map((ins, i) => {
@@ -295,7 +295,7 @@ export default function Dashboard() {
         <Card>
           <CardHeader className="pb-2 flex flex-row items-center justify-between">
             <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-              Flagged Organizations
+              Organizations Requiring Attention
             </CardTitle>
             <Link to="/review-queue">
               <Button variant="ghost" size="sm" className="text-xs gap-1 h-7">
@@ -346,7 +346,7 @@ export default function Dashboard() {
 
       {/* Disclaimer */}
       <p className="text-xs text-muted-foreground border-t border-border pt-4">
-        <strong>Notice:</strong> This tool provides early-warning assessments based on structured indicators and evidence. It does not determine fraud, misconduct, or legal non-compliance. All flagged cases require human review before any funding decision is made.
+        <strong>Notice:</strong> Capacity assessments are generated from structured indicators and available evidence. They are intended to support — not replace — professional judgment. No assessment constitutes a determination of misconduct, fraud, or legal non-compliance. All cases requiring action must receive a documented reviewer decision prior to any funding determination.
       </p>
     </div>
   );

@@ -111,8 +111,8 @@ Write in neutral, evidence-based language. This is an early-warning assessment, 
         <TabsContent value="assessment" className="mt-4">
           {latestAssessment ? <AssessmentPanel assessment={latestAssessment} onRecordDecision={() => setShowReviewDialog(true)} /> : (
             <div className="text-center py-12 text-muted-foreground">
-              <p className="text-sm">No assessment has been run yet.</p>
-              <p className="text-xs mt-1">Click "Run Capacity Assessment" to generate a score.</p>
+              <p className="text-sm">No assessment has been recorded for this organization.</p>
+              <p className="text-xs mt-1">Select "Run Capacity Assessment" above to generate an initial assessment.</p>
             </div>
           )}
         </TabsContent>
