@@ -32,22 +32,29 @@ const STATUS_STYLES = {
 // Decision options — grouped by type for the reviewer
 const DECISION_OPTIONS = [
 {
-  group: 'Concur with Assessment Finding',
-  icon: ShieldAlert,
-  iconClass: 'text-red-500',
+  group: 'Approve',
+  icon: ShieldCheck,
+  iconClass: 'text-green-500',
   options: [
-    { value: 'do_not_renew',       label: 'Do Not Renew',                  desc: 'Concur with the assessment finding. Identified capacity indicators are insufficient to support renewal recommendation.' },
-    { value: 'further_review',     label: 'Refer for Further Review',       desc: 'Concur that concern exists. Additional enquiry or documentation is required before a final determination.' },
-    { value: 'conditional_funding',label: 'Conditional Continuation',       desc: 'Funding may continue subject to explicit conditions addressing identified capacity shortfalls.' },
+    { value: 'no_concern',          emoji: '✅', label: 'Approve as Requested',             desc: 'Organization demonstrates sufficient capacity. Proceed with funding as proposed. Override rationale required if departing from a high-concern finding.', activeClass: 'border-green-400 bg-green-50 ring-1 ring-green-300' },
+    { value: 'conditional_funding', emoji: '📋', label: 'Approve with Milestones',           desc: 'Funding approved subject to milestone-based disbursement and periodic delivery evidence.', activeClass: 'border-blue-400 bg-blue-50 ring-1 ring-blue-300' },
+    { value: 'monitor',             emoji: '📉', label: 'Reduce Funding Amount',             desc: 'Approve a smaller grant more proportionate to current demonstrated capacity.', activeClass: 'border-yellow-400 bg-yellow-50 ring-1 ring-yellow-300' },
   ]
 },
 {
-  group: 'Depart from Assessment Finding',
-  icon: ShieldCheck,
-  iconClass: 'text-yellow-500',
+  group: 'Refer / Defer',
+  icon: ShieldAlert,
+  iconClass: 'text-orange-500',
   options: [
-    { value: 'monitor',            label: 'Monitor — Reduced Concern',      desc: 'Reviewer determines that concern is present but does not warrant the assessed classification. Ongoing monitoring is appropriate.' },
-    { value: 'no_concern',         label: 'No Concern — Assessment Override', desc: 'Reviewer determines the assessment does not reflect available evidence. A documented override rationale is required.' },
+    { value: 'further_review',      emoji: '🌱', label: 'Refer to Capacity-Building Stream', desc: 'Organization shows genuine potential but lacks current readiness. Refer for governance or operational support before funding proceeds.', activeClass: 'border-teal-400 bg-teal-50 ring-1 ring-teal-300' },
+  ]
+},
+{
+  group: 'Escalate or Decline',
+  icon: ShieldAlert,
+  iconClass: 'text-red-500',
+  options: [
+    { value: 'do_not_renew',        emoji: '🔍', label: 'Escalate to Enhanced Review',      desc: 'Pattern of inconsistencies warrants deeper investigation before any funding determination is made.', activeClass: 'border-orange-400 bg-orange-50 ring-1 ring-orange-300' },
   ]
 },
 ];
@@ -148,17 +155,20 @@ function ReviewDialog({ assessment, org, onClose, onSubmit, isPending }) {
                           onClick={() => setForm(p => ({ ...p, finalDecision: opt.value }))}
                           className={`w-full text-left px-3 py-2.5 rounded-lg border transition-all text-sm ${
                             form.finalDecision === opt.value
-                              ? 'border-primary bg-primary/5 ring-1 ring-primary/30'
+                              ? (opt.activeClass || 'border-primary bg-primary/5 ring-1 ring-primary/30')
                               : 'border-border bg-card hover:bg-muted/50'
                           }`}
                         >
                           <div className="flex items-center justify-between gap-2">
-                            <span className="font-medium">{opt.label}</span>
+                            <span className="font-semibold flex items-center gap-2">
+                              <span className="text-base leading-none">{opt.emoji}</span>
+                              {opt.label}
+                            </span>
                             {IS_OVERRIDE[opt.value] && (
-                              <span className="text-[10px] bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded font-medium">Override</span>
+                              <span className="text-[10px] bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded font-medium flex-shrink-0">Override</span>
                             )}
                           </div>
-                          <p className="text-xs text-muted-foreground mt-0.5">{opt.desc}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5 pl-6">{opt.desc}</p>
                         </button>
                       ))}
                     </div>

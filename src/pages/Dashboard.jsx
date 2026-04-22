@@ -10,7 +10,9 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip } from 'recharts';
 import RiskBadge from '@/components/shared/RiskBadge';
+import RiskNatureBadge from '@/components/shared/RiskNatureBadge';
 import DemoSpotlight from '@/components/dashboard/DemoSpotlight';
+import { RISK_NATURE_CONFIG } from '@/lib/scoringEngine';
 
 function StatPill({ title, value, sub, color }) {
   return (
@@ -202,6 +204,36 @@ export default function Dashboard() {
         <StatPill title="Moderate"     value={modCount}  sub="Score 40–67" color="text-yellow-600" />
         <StatPill title="High Concern" value={highCount} sub="Score < 40"  color="text-red-600" />
       </div>
+
+      {/* Risk Nature Breakdown */}
+      {latest.filter(a => a.riskNature).length > 0 && (() => {
+        const natures = ['Ready', 'Emerging but Underdeveloped', 'Overstretched / Request Exceeds Capacity', 'High Concern / Enhanced Due Diligence Required'];
+        const counts = {};
+        natures.forEach(n => { counts[n] = latest.filter(a => a.riskNature === n).length; });
+        return (
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Risk Nature Breakdown</h2>
+              <span className="text-xs text-muted-foreground">— What kind of risk is this?</span>
+            </div>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              {natures.map(n => {
+                const cfg = RISK_NATURE_CONFIG[n];
+                const count = counts[n];
+                return (
+                  <div key={n} className={`rounded-xl border p-4 ${cfg.bg} ${cfg.border}`}>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-lg">{cfg.emoji}</span>
+                      <span className={`text-2xl font-bold ${cfg.color}`}>{count}</span>
+                    </div>
+                    <p className={`text-xs font-semibold leading-snug ${cfg.color}`}>{n}</p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Charts + Queue */}
       <div className="grid lg:grid-cols-3 gap-4">

@@ -11,22 +11,29 @@ import { AlertTriangle, CheckCircle2, ClipboardCheck, Info, ShieldAlert, ShieldC
 
 const DECISION_OPTIONS = [
   {
-    group: 'Confirm AI Finding',
-    icon: ShieldAlert,
-    iconClass: 'text-red-500',
-    options: [
-      { value: 'do_not_renew',        emoji: '❌', label: 'Do Not Renew',               desc: 'Capacity concerns are significant enough to recommend non-renewal of this funding arrangement.', activeClass: 'border-red-400 bg-red-50 ring-1 ring-red-300' },
-      { value: 'further_review',      emoji: '🔍', label: 'Further Review Required',     desc: 'Concern confirmed — requires additional investigation or site verification before a final decision.', activeClass: 'border-orange-400 bg-orange-50 ring-1 ring-orange-300' },
-      { value: 'conditional_funding', emoji: '⚠️', label: 'Conditional / Staged Funding', desc: 'Funding may proceed subject to explicit conditions tied to the identified capacity gaps.', activeClass: 'border-yellow-400 bg-yellow-50 ring-1 ring-yellow-300' },
-    ]
-  },
-  {
-    group: 'Modify AI Finding',
+    group: 'Approve',
     icon: ShieldCheck,
     iconClass: 'text-green-500',
     options: [
-      { value: 'monitor',    emoji: '👁️', label: 'Proceed — Monitor Closely',  desc: 'Risk downgraded. Organization may proceed but will be flagged for enhanced monitoring at next renewal.', activeClass: 'border-blue-400 bg-blue-50 ring-1 ring-blue-300' },
-      { value: 'no_concern', emoji: '✅', label: 'Proceed with Funding',        desc: 'Override the AI assessment. Organization demonstrates sufficient capacity. Override rationale is required.', activeClass: 'border-green-400 bg-green-50 ring-1 ring-green-300' },
+      { value: 'no_concern',         emoji: '✅', label: 'Approve as Requested',       desc: 'Organization demonstrates sufficient capacity. Proceed with funding as proposed.', activeClass: 'border-green-400 bg-green-50 ring-1 ring-green-300' },
+      { value: 'conditional_funding',emoji: '📋', label: 'Approve with Milestones',     desc: 'Funding approved subject to milestone-based disbursement tied to delivery evidence.', activeClass: 'border-blue-400 bg-blue-50 ring-1 ring-blue-300' },
+      { value: 'monitor',            emoji: '📉', label: 'Reduce Funding Amount',       desc: 'Approve a smaller grant more proportionate to current demonstrated capacity.', activeClass: 'border-yellow-400 bg-yellow-50 ring-1 ring-yellow-300' },
+    ]
+  },
+  {
+    group: 'Refer / Hold',
+    icon: ShieldAlert,
+    iconClass: 'text-orange-500',
+    options: [
+      { value: 'further_review',     emoji: '🌱', label: 'Refer to Capacity-Building Stream', desc: 'Organization shows potential but needs support to reach readiness. Refer for governance or operational assistance.', activeClass: 'border-teal-400 bg-teal-50 ring-1 ring-teal-300' },
+    ]
+  },
+  {
+    group: 'Escalate or Decline',
+    icon: ShieldAlert,
+    iconClass: 'text-red-500',
+    options: [
+      { value: 'do_not_renew',       emoji: '🔍', label: 'Escalate to Enhanced Review',  desc: 'Pattern of inconsistencies warrants deeper investigation before any funding determination.', activeClass: 'border-orange-400 bg-orange-50 ring-1 ring-orange-300' },
     ]
   },
 ];

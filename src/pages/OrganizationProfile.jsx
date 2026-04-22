@@ -48,11 +48,19 @@ export default function OrganizationProfile() {
 
 Organization: ${org.organizationName} (${org.organizationType})
 Overall Capacity Score: ${scores.overallCapacityScore}/100
-Risk Level: ${scores.riskLevel}
+Capacity Readiness Score: ${scores.capacityReadinessScore}/100
+Integrity Concern Score: ${scores.integrityConcernScore}/100
+Risk Nature Classification: ${scores.riskNature}
 Key findings:
 ${scores.factors.map(f => `- [${f.severity.toUpperCase()}] ${f.area}: ${f.detail}`).join('\n')}
 
-Write in neutral, evidence-based language. This is an early-warning assessment, not a fraud determination. End with a brief recommended next step for the reviewer.`;
+Important: Your summary must reflect the Risk Nature Classification:
+- If "Emerging but Underdeveloped": emphasize mission alignment but operational immaturity. Do NOT imply bad faith.
+- If "Overstretched / Request Exceeds Capacity": note the organization appears real but the scope exceeds current capacity.
+- If "High Concern / Enhanced Due Diligence Required": note significant inconsistencies between claimed and observable capacity, justify enhanced review — never accuse of fraud.
+- If "Ready": confirm proportionate alignment between funding and observable capacity.
+
+Write in neutral, evidence-based language. End with a recommended next step appropriate to the classification.`;
 
       aiSummary = await base44.integrations.Core.InvokeLLM({ prompt });
     } catch (e) {
@@ -70,11 +78,15 @@ Write in neutral, evidence-based language. This is an early-warning assessment, 
       deliveryPlausibilityScore: scores.deliveryPlausibilityScore,
       complianceScore: scores.complianceScore,
       overallCapacityScore: scores.overallCapacityScore,
+      capacityReadinessScore: scores.capacityReadinessScore,
+      integrityConcernScore: scores.integrityConcernScore,
       riskLevel: scores.riskLevel,
+      riskNature: scores.riskNature,
+      recommendedFundingPath: scores.recommendedFundingPath,
       aiSummary,
       explanationFactors: JSON.stringify(scores.factors),
+      whyThisCase: JSON.stringify(scores.whyThisCase),
       humanReviewRequired: scores.humanReviewRequired,
-      // Moderate and high-risk assessments automatically enter the review queue
       reviewerStatus: scores.humanReviewRequired ? 'needs_review' : 'validated',
       benchmarkCategory: scores.riskLevel,
     };

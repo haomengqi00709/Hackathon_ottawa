@@ -1,6 +1,6 @@
 // Proof of Capacity Engine — Rules-based scoring model
-// Scoring focuses on MISMATCH between funding claims and observable capacity.
-// Small organizations are NOT penalized for being small — only for implausible gaps.
+// Layer 1: Capacity Score (existing)
+// Layer 2: Capacity Readiness Score + Integrity Concern Score → Risk Nature Classification
 
 // Component weights — must sum to 1.0
 export const SCORE_WEIGHTS = {
@@ -10,6 +10,50 @@ export const SCORE_WEIGHTS = {
   revenueDiversityScore:    { weight: 0.15, label: 'Revenue Diversity',        pct: '15%', tooltip: 'Flags near-total dependence on a single government funder. Heavily concentrated revenue creates both sustainability and accountability risk. Organizations with genuinely diversified income score higher.' },
   infrastructureScore:      { weight: 0.10, label: 'Infrastructure & Status',  pct: '10%', tooltip: 'Checks whether the organization has a verifiable physical presence and is legally active. A dissolved or inactive organization, or one with no confirmed address, scores very low regardless of other factors.' },
   complianceScore:          { weight: 0.05, label: 'Compliance & Reporting',   pct: '5%',  tooltip: 'Reflects whether financial filings are current and timely. Missing or late filings reduce the ability to verify any other claims and are treated as a moderate-to-high flag.' },
+};
+
+// ─── RISK NATURE CONFIG ───────────────────────────────────────────────────────
+export const RISK_NATURE_CONFIG = {
+  'Ready': {
+    color: 'text-green-700',
+    bg: 'bg-green-50',
+    border: 'border-green-200',
+    badge: 'bg-green-100 text-green-800',
+    dot: 'bg-green-500',
+    emoji: '✅',
+    template: "This organization's staffing, infrastructure, and financial profile appear reasonably aligned with the proposed scope of work. Based on currently available evidence, the requested funding appears proportionate to observable capacity.",
+    recommendedPath: 'Approve as requested',
+  },
+  'Emerging but Underdeveloped': {
+    color: 'text-blue-700',
+    bg: 'bg-blue-50',
+    border: 'border-blue-200',
+    badge: 'bg-blue-100 text-blue-800',
+    dot: 'bg-blue-500',
+    emoji: '🌱',
+    template: "This organization appears mission-aligned and shows some signs of genuine activity, but its current staffing, systems, or infrastructure do not yet support the scale of funding requested. A smaller or staged funding approach may be more appropriate.",
+    recommendedPath: 'Refer to capacity-building stream',
+  },
+  'Overstretched / Request Exceeds Capacity': {
+    color: 'text-orange-700',
+    bg: 'bg-orange-50',
+    border: 'border-orange-200',
+    badge: 'bg-orange-100 text-orange-800',
+    dot: 'bg-orange-500',
+    emoji: '⚠️',
+    template: "This organization appears active and plausible, but the proposed scope, timeline, or funding level exceeds what its current operating model appears able to absorb. A revised scope or milestone-based funding approach should be considered.",
+    recommendedPath: 'Approve with milestones',
+  },
+  'High Concern / Enhanced Due Diligence Required': {
+    color: 'text-red-700',
+    bg: 'bg-red-50',
+    border: 'border-red-200',
+    badge: 'bg-red-100 text-red-800',
+    dot: 'bg-red-500',
+    emoji: '🚨',
+    template: "This organization presents significant inconsistencies between claimed capacity and observable evidence. The current pattern does not support confident assessment through routine review alone and warrants enhanced due diligence before funding is considered.",
+    recommendedPath: 'Escalate to enhanced review',
+  },
 };
 
 export function calculateCapacityScores(org, funding, financials, benchmarks) {
@@ -22,12 +66,10 @@ export function calculateCapacityScores(org, funding, financials, benchmarks) {
   const totalStaff = employees + volunteers;
 
   // ─── 1. STAFFING ADEQUACY (20%) ──────────────────────────────────────────
-  // Key principle: compare funding-per-staff ratio, NOT absolute headcount.
-  // A 2-person org with $80K is fine. A 2-person org with $2M is not.
   let staffingScore = 75;
 
   if (totalFunding === 0) {
-    staffingScore = 75; // no funding data — neutral
+    staffingScore = 75;
   } else if (employees === 0) {
     if (totalFunding > 500000) {
       staffingScore = 10;
@@ -36,13 +78,11 @@ export function calculateCapacityScores(org, funding, financials, benchmarks) {
       staffingScore = 35;
       factors.push({ area: 'Staffing Adequacy', severity: 'high', detail: `No employees reported with $${totalFunding.toLocaleString()} in funding. Even volunteer-only operations at this scale are unusual.` });
     } else {
-      // Small funding + no employees = possibly legitimate volunteer org
       staffingScore = 60;
       factors.push({ area: 'Staffing Adequacy', severity: 'moderate', detail: `No employees reported, but funding is modest ($${totalFunding.toLocaleString()}). Review whether volunteers can reasonably cover delivery.` });
     }
   } else {
     const fundingPerEmployee = totalFunding / employees;
-    // Context-sensitive thresholds: scale matters
     if (fundingPerEmployee > 600000) {
       staffingScore = 30;
       factors.push({ area: 'Staffing Adequacy', severity: 'high', detail: `$${Math.round(fundingPerEmployee).toLocaleString()} in funding per employee. This ratio is very high — delivery capacity is likely insufficient for the funding received.` });
@@ -59,14 +99,8 @@ export function calculateCapacityScores(org, funding, financials, benchmarks) {
   }
 
   // ─── 2. DELIVERY PLAUSIBILITY (25%) ──────────────────────────────────────
-  // Core question: is the claimed scope of work achievable with available capacity?
   let deliveryPlausibilityScore = 75;
-
-  // Build a normalized "delivery demand" index
-  const hasLargeDeliverables = funding.some(f =>
-    f.expectedDeliverables && f.expectedDeliverables.length > 80
-  );
-  // Parse participant counts from deliverables text
+  const hasLargeDeliverables = funding.some(f => f.expectedDeliverables && f.expectedDeliverables.length > 80);
   const allDeliverables = funding.map(f => f.expectedDeliverables || '').join(' ');
   const participantMatch = allDeliverables.match(/(\d[\d,]*)\s*(participant|youth|client|student|household|family|resident)/i);
   const claimedParticipants = participantMatch ? parseInt(participantMatch[1].replace(/,/g, '')) : 0;
@@ -90,7 +124,6 @@ export function calculateCapacityScores(org, funding, financials, benchmarks) {
     deliveryPlausibilityScore = 35;
     factors.push({ area: 'Delivery Plausibility', severity: 'high', detail: `Significant funding ($${totalFunding.toLocaleString()}) and broad delivery claims, but only ${totalStaff} total staff. Delivery capacity appears strained.` });
   } else if (totalFunding > 0 && totalFunding <= 200000) {
-    // Small org — don't penalize if scale is proportionate
     deliveryPlausibilityScore = 80;
     factors.push({ area: 'Delivery Plausibility', severity: 'low', detail: `Funding scale ($${totalFunding.toLocaleString()}) and claimed scope appear proportionate for a small organization.` });
   } else {
@@ -121,7 +154,6 @@ export function calculateCapacityScores(org, funding, financials, benchmarks) {
     factors.push({ area: 'Program Spending', severity: 'low', detail: `${Math.round(programRatio * 100)}% program expense ratio is strong. Most funding reaches intended delivery.` });
   }
 
-  // Compensation flag — independent of program ratio
   if (compensationRatio !== null && compensationRatio > 0.70) {
     programExpenseScore = Math.min(programExpenseScore, 25);
     factors.push({ area: 'Program Spending', severity: 'high', detail: `${Math.round(compensationRatio * 100)}% of all expenses are compensation. When compensation dominates spending, minimal resources remain for actual program delivery.` });
@@ -129,7 +161,6 @@ export function calculateCapacityScores(org, funding, financials, benchmarks) {
     factors.push({ area: 'Program Spending', severity: 'moderate', detail: `${Math.round(compensationRatio * 100)}% compensation ratio is elevated. Consider whether staffing structure is appropriate for program type.` });
   }
 
-  // Pass-through flag
   if (transferRatio > 0.30) {
     factors.push({ area: 'Program Spending', severity: 'moderate', detail: `${Math.round(transferRatio * 100)}% of expenses transferred to other entities. A high pass-through rate reduces accountability for direct delivery and warrants tracing of recipient organizations.` });
   }
@@ -192,14 +223,14 @@ export function calculateCapacityScores(org, funding, financials, benchmarks) {
     factors.push({ area: 'Compliance & Reporting', severity: 'low', detail: 'Financial filings are current. No reporting compliance issues identified.' });
   }
 
-  // ─── OVERALL WEIGHTED SCORE ───────────────────────────────────────────────
+  // ─── OVERALL WEIGHTED SCORE (Layer 1) ─────────────────────────────────────
   const overallCapacityScore = Math.round(
-    staffingScore            * SCORE_WEIGHTS.staffingScore.weight +
-    deliveryPlausibilityScore* SCORE_WEIGHTS.deliveryPlausibilityScore.weight +
-    programExpenseScore      * SCORE_WEIGHTS.programExpenseScore.weight +
-    revenueDiversityScore    * SCORE_WEIGHTS.revenueDiversityScore.weight +
-    infrastructureScore      * SCORE_WEIGHTS.infrastructureScore.weight +
-    complianceScore          * SCORE_WEIGHTS.complianceScore.weight
+    staffingScore             * SCORE_WEIGHTS.staffingScore.weight +
+    deliveryPlausibilityScore * SCORE_WEIGHTS.deliveryPlausibilityScore.weight +
+    programExpenseScore       * SCORE_WEIGHTS.programExpenseScore.weight +
+    revenueDiversityScore     * SCORE_WEIGHTS.revenueDiversityScore.weight +
+    infrastructureScore       * SCORE_WEIGHTS.infrastructureScore.weight +
+    complianceScore           * SCORE_WEIGHTS.complianceScore.weight
   );
 
   let riskLevel = 'low';
@@ -208,7 +239,142 @@ export function calculateCapacityScores(org, funding, financials, benchmarks) {
 
   const humanReviewRequired = riskLevel !== 'low';
 
-  // dependencyScore kept for backward compat (maps to revenueDiversityScore)
+  // ─── LAYER 2A: CAPACITY READINESS SCORE (0-100) ───────────────────────────
+  // Measures: can they actually deliver what they propose?
+  // Staffing 25%, Infrastructure 20%, Financial Operating 20%, Delivery 25%, Governance 10%
+
+  // Staffing dimension (25%)
+  const crStaffing = Math.min(100, staffingScore);
+
+  // Infrastructure dimension (20%)
+  const crInfrastructure = Math.min(100, infrastructureScore);
+
+  // Financial operating capacity (20%) — proxy via program spending + revenue diversity
+  const crFinancial = Math.round((programExpenseScore * 0.6) + (revenueDiversityScore * 0.4));
+
+  // Delivery plausibility (25%)
+  const crDelivery = Math.min(100, deliveryPlausibilityScore);
+
+  // Governance/maturity (10%) — proxy via compliance
+  const crGovernance = Math.min(100, complianceScore);
+
+  const capacityReadinessScore = Math.round(
+    crStaffing      * 0.25 +
+    crInfrastructure* 0.20 +
+    crFinancial     * 0.20 +
+    crDelivery      * 0.25 +
+    crGovernance    * 0.10
+  );
+
+  // ─── LAYER 2B: INTEGRITY CONCERN SCORE (0-100) ────────────────────────────
+  // Measures: do the gaps look developmental or strategically patterned?
+  // Verifiability 25%, Internal Consistency 25%, Extraction Risk 20%, Network/Gov 15%, Dormancy 15%
+
+  // Verifiability gap (25%) — no footprint, unknown presence, no website
+  let verifiabilityGap = 0;
+  if (presence === 'none') verifiabilityGap += 60;
+  else if (presence === 'unknown') verifiabilityGap += 35;
+  else if (presence === 'limited') verifiabilityGap += 15;
+  if (!org.website) verifiabilityGap += 20;
+  if (fin.latestFilingStatus === 'missing') verifiabilityGap += 20;
+  verifiabilityGap = Math.min(100, verifiabilityGap);
+
+  // Internal consistency gap (25%) — contradictions between claims and evidence
+  let consistencyGap = 0;
+  if (employees === 0 && totalFunding > 300000) consistencyGap += 50;
+  else if (employees === 0 && totalFunding > 100000) consistencyGap += 30;
+  if (claimedParticipants > 0 && employees > 0 && (claimedParticipants / employees) > 500) consistencyGap += 40;
+  else if (claimedParticipants > 0 && employees > 0 && (claimedParticipants / employees) > 200) consistencyGap += 20;
+  if (hasLargeDeliverables && totalStaff < 3) consistencyGap += 25;
+  consistencyGap = Math.min(100, consistencyGap);
+
+  // Structural extraction risk (20%) — compensation dominance, pass-through, low program spend
+  let extractionRisk = 0;
+  if (programRatio !== null && programRatio < 0.20) extractionRisk += 50;
+  else if (programRatio !== null && programRatio < 0.35) extractionRisk += 25;
+  if (compensationRatio !== null && compensationRatio > 0.70) extractionRisk += 35;
+  else if (compensationRatio !== null && compensationRatio > 0.55) extractionRisk += 15;
+  if (transferRatio > 0.40) extractionRisk += 30;
+  else if (transferRatio > 0.25) extractionRisk += 15;
+  extractionRisk = Math.min(100, extractionRisk);
+
+  // Network / governance concern (15%) — proxy via status anomalies and gov dependency
+  let networkConcern = 0;
+  if (govDependencyRatio !== null && govDependencyRatio > 0.95) networkConcern += 40;
+  else if (govDependencyRatio !== null && govDependencyRatio > 0.80) networkConcern += 20;
+  if (fin.latestFilingStatus === 'missing') networkConcern += 30;
+  else if (fin.latestFilingStatus === 'late') networkConcern += 10;
+  networkConcern = Math.min(100, networkConcern);
+
+  // Disappearance / dormancy risk (15%) — inactive status, missing filings
+  let dormancyRisk = 0;
+  if (org.activeStatus === 'dissolved' || org.activeStatus === 'inactive') dormancyRisk += 70;
+  if (fin.latestFilingStatus === 'missing') dormancyRisk += 30;
+  else if (fin.latestFilingStatus === 'late') dormancyRisk += 15;
+  if (presence === 'none') dormancyRisk += 20;
+  dormancyRisk = Math.min(100, dormancyRisk);
+
+  const integrityConcernScore = Math.round(
+    verifiabilityGap * 0.25 +
+    consistencyGap   * 0.25 +
+    extractionRisk   * 0.20 +
+    networkConcern   * 0.15 +
+    dormancyRisk     * 0.15
+  );
+
+  // ─── LAYER 2C: RISK NATURE CLASSIFICATION ────────────────────────────────
+  let riskNature;
+
+  if (capacityReadinessScore >= 75 && integrityConcernScore < 25) {
+    riskNature = 'Ready';
+  } else if (integrityConcernScore >= 50 || (capacityReadinessScore < 35 && integrityConcernScore >= 40)) {
+    riskNature = 'High Concern / Enhanced Due Diligence Required';
+  } else if (
+    capacityReadinessScore >= 40 && capacityReadinessScore <= 65 &&
+    integrityConcernScore >= 20 && integrityConcernScore <= 45
+  ) {
+    riskNature = 'Overstretched / Request Exceeds Capacity';
+  } else if (capacityReadinessScore < 65 && integrityConcernScore < 35) {
+    riskNature = 'Emerging but Underdeveloped';
+  } else {
+    // Fallback: use overall score
+    riskNature = overallCapacityScore >= 68 ? 'Ready' :
+                 overallCapacityScore >= 40 ? 'Overstretched / Request Exceeds Capacity' :
+                 'High Concern / Enhanced Due Diligence Required';
+  }
+
+  const recommendedFundingPath = RISK_NATURE_CONFIG[riskNature]?.recommendedPath || 'Request more evidence';
+
+  // ─── "WHY THIS CASE LANDED HERE" ─────────────────────────────────────────
+  const positiveFactors = factors.filter(f => f.severity === 'low');
+  const highFactors = factors.filter(f => f.severity === 'high');
+  const modFactors = factors.filter(f => f.severity === 'moderate');
+
+  const positiveSignal = positiveFactors.length > 0
+    ? positiveFactors[0].detail
+    : employees > 0
+    ? `${employees} employee${employees > 1 ? 's' : ''} reported with active organizational status.`
+    : 'Organization has active registration status.';
+
+  const cautionSignal = highFactors.length > 0
+    ? highFactors[0].detail
+    : modFactors.length > 0
+    ? modFactors[0].detail
+    : 'No major red flags detected, but data coverage is limited.';
+
+  const classificationReasonMap = {
+    'Ready': `Capacity readiness score (${capacityReadinessScore}/100) is strong and integrity concern score (${integrityConcernScore}/100) is low. Observable indicators are aligned with funding level.`,
+    'Emerging but Underdeveloped': `Capacity readiness score (${capacityReadinessScore}/100) indicates operational immaturity relative to the funding request. Integrity concern score (${integrityConcernScore}/100) does not suggest strategic manipulation — the gap appears developmental.`,
+    'Overstretched / Request Exceeds Capacity': `The organization shows real operational activity, but capacity readiness (${capacityReadinessScore}/100) and integrity concern (${integrityConcernScore}/100) together suggest the funding request or delivery scope materially exceeds current operational capacity.`,
+    'High Concern / Enhanced Due Diligence Required': `Integrity concern score (${integrityConcernScore}/100) is elevated${integrityConcernScore >= 50 ? ' above the 50-point threshold' : ''}. The combination of weak capacity readiness (${capacityReadinessScore}/100) and patterned inconsistencies justifies enhanced scrutiny before any funding determination.`,
+  };
+
+  const whyThisCase = {
+    positiveSignal,
+    cautionSignal,
+    classificationReason: classificationReasonMap[riskNature] || '',
+  };
+
   return {
     staffingScore,
     infrastructureScore,
@@ -218,9 +384,14 @@ export function calculateCapacityScores(org, funding, financials, benchmarks) {
     deliveryPlausibilityScore,
     complianceScore,
     overallCapacityScore,
+    capacityReadinessScore,
+    integrityConcernScore,
     riskLevel,
+    riskNature,
+    recommendedFundingPath,
     humanReviewRequired,
     factors,
+    whyThisCase,
   };
 }
 

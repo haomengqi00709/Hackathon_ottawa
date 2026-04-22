@@ -35,9 +35,21 @@
       "type": "number",
       "description": "Delivery plausibility score 0-100"
     },
+    "complianceScore": {
+      "type": "number",
+      "description": "Compliance and reporting score 0-100"
+    },
     "overallCapacityScore": {
       "type": "number",
       "description": "Overall capacity score 0-100"
+    },
+    "capacityReadinessScore": {
+      "type": "number",
+      "description": "Layer 2: Capacity readiness score 0-100 (operational maturity)"
+    },
+    "integrityConcernScore": {
+      "type": "number",
+      "description": "Layer 2: Integrity concern score 0-100 (pattern of misrepresentation risk)"
     },
     "riskLevel": {
       "type": "string",
@@ -48,6 +60,30 @@
       ],
       "description": "Risk level classification"
     },
+    "riskNature": {
+      "type": "string",
+      "enum": [
+        "Ready",
+        "Emerging but Underdeveloped",
+        "Overstretched / Request Exceeds Capacity",
+        "High Concern / Enhanced Due Diligence Required"
+      ],
+      "description": "Second-layer classification distinguishing readiness gaps from integrity concerns"
+    },
+    "recommendedFundingPath": {
+      "type": "string",
+      "enum": [
+        "Approve as requested",
+        "Approve with milestones",
+        "Reduce funding amount",
+        "Refer to capacity-building stream",
+        "Request more evidence",
+        "Escalate to enhanced review",
+        "Decline due to readiness concerns",
+        "Decline pending integrity review"
+      ],
+      "description": "Recommended funding pathway based on classification"
+    },
     "aiSummary": {
       "type": "string",
       "description": "AI-generated plain language summary"
@@ -55,6 +91,10 @@
     "explanationFactors": {
       "type": "string",
       "description": "JSON string of explanation factors"
+    },
+    "whyThisCase": {
+      "type": "string",
+      "description": "JSON string with positiveSignal, cautionSignal, classificationReason"
     },
     "humanReviewRequired": {
       "type": "boolean",

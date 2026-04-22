@@ -3,6 +3,8 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { getRiskColor, SCORE_WEIGHTS, getScoreColor } from '@/lib/scoringEngine';
 import { AlertTriangle, CheckCircle2, AlertCircle, Info, HelpCircle, ClipboardCheck, ShieldAlert } from 'lucide-react';
+import Layer2ScorePanel from './Layer2ScorePanel';
+import WhyThisCase from './WhyThisCase';
 
 const severityIcons = { high: AlertTriangle, moderate: AlertCircle, low: CheckCircle2 };
 const severityColors = {
@@ -146,6 +148,12 @@ export default function AssessmentPanel({ assessment, onRecordDecision }) {
           </CardContent>
         </Card>
       )}
+
+      {/* Layer 2: Risk Nature Assessment */}
+      <Layer2ScorePanel assessment={assessment} />
+
+      {/* Why this case landed here */}
+      <WhyThisCase assessment={assessment} />
 
       {/* Risk factors — high severity first */}
       {factors.length > 0 && (

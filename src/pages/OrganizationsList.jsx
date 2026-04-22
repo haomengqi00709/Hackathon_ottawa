@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import RiskBadge from '@/components/shared/RiskBadge';
+import RiskNatureBadge from '@/components/shared/RiskNatureBadge';
 import { Badge } from '@/components/ui/badge';
 
 export default function OrganizationsList() {
@@ -90,6 +91,7 @@ export default function OrganizationsList() {
                   <TableHead>Employees</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Risk</TableHead>
+                  <TableHead className="hidden lg:table-cell">Nature</TableHead>
                   <TableHead className="text-right">Score</TableHead>
                 </TableRow>
               </TableHeader>
@@ -118,6 +120,7 @@ export default function OrganizationsList() {
                         </Badge>
                       </TableCell>
                       <TableCell>{assessment ? <RiskBadge level={assessment.riskLevel} /> : <span className="text-xs text-muted-foreground">—</span>}</TableCell>
+                      <TableCell className="hidden lg:table-cell">{assessment?.riskNature ? <RiskNatureBadge riskNature={assessment.riskNature} /> : <span className="text-xs text-muted-foreground">—</span>}</TableCell>
                       <TableCell className="text-right">
                         {assessment ? (
                           <span className={`font-bold ${assessment.overallCapacityScore >= 70 ? 'text-green-600' : assessment.overallCapacityScore >= 40 ? 'text-yellow-600' : 'text-red-600'}`}>
@@ -129,7 +132,7 @@ export default function OrganizationsList() {
                   );
                 })}
                 {filtered.length === 0 && (
-                  <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No organizations found</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">No organizations found</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>
