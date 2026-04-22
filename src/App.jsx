@@ -14,6 +14,7 @@ import OrganizationProfile from '@/pages/OrganizationProfile';
 import ReviewQueue from '@/pages/ReviewQueue';
 import BenchmarksPage from '@/pages/BenchmarksPage';
 import SettingsPage from '@/pages/SettingsPage';
+import IntakePage from '@/pages/IntakePage';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -41,6 +42,7 @@ const AuthenticatedApp = () => {
         <Route path="/organizations" element={<OrganizationsList />} />
         <Route path="/organizations/new" element={<OrganizationNew />} />
         <Route path="/organizations/:id" element={<OrganizationProfile />} />
+        <Route path="/intake" element={<IntakePage />} />
         <Route path="/review-queue" element={<ReviewQueue />} />
         <Route path="/benchmarks" element={<BenchmarksPage />} />
         <Route path="/settings" element={<SettingsPage />} />
