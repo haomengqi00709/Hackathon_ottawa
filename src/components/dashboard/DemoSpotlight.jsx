@@ -8,45 +8,51 @@ const DEMO_ORGS = [
     name: 'Northbridge Youth Futures',
     score: 82,
     risk: 'low',
-    tagline: 'The Benchmark Case',
-    description: '14 staff, confirmed office, 60% program spend. This is what a well-run recipient looks like — use it as your baseline.',
+    tagline: '✅ Aligned & Funded',
+    description: 'This organization is small — but aligned. Their capacity matches their commitment. 14 staff, confirmed office, 60% of spend reaching programs directly. This is the baseline for what good looks like.',
+    verdict: 'Capacity matches commitment. Proceed with confidence.',
+    verdictClass: 'text-green-700 bg-green-50 border-green-200',
     scoreColor: 'text-green-600',
     borderColor: 'border-green-200',
     bg: 'bg-green-50',
     badgeBg: 'bg-green-100 text-green-800',
     Icon: CheckCircle2,
     iconClass: 'text-green-500',
-    talking_points: ['Confirmed physical address', 'CRA T4 confirms 14 employees', '60% of spend reaches programs'],
+    talking_points: ['Confirmed physical address on file', 'CRA T4 confirms 14 active employees', '60% of spend reaches program delivery'],
   },
   {
     id: '69e7f9099606b8721190163f',
     name: 'Clearpath Community Services Inc.',
     score: 16,
     risk: 'high',
-    tagline: 'The Pass-Through Concern',
-    description: '$1.4M received. 2 employees. PO Box address. 60% of expenses transferred to undisclosed entities. Filed late.',
+    tagline: '🚨 Pass-Through Concern',
+    description: 'This organization shows near-total dependency on public funding, critically insufficient staffing, and only 21% of expenses reaching stated programs — with 60% transferred to undisclosed entities.',
+    verdict: 'Formal investigation recommended before any renewal.',
+    verdictClass: 'text-red-700 bg-red-50 border-red-200',
     scoreColor: 'text-red-600',
     borderColor: 'border-red-200',
     bg: 'bg-red-50',
     badgeBg: 'bg-red-100 text-red-800',
     Icon: AlertTriangle,
     iconClass: 'text-red-500',
-    talking_points: ['Only a PO Box — no office found', '$820K transferred to unknown entities', 'Incorporated as a for-profit company'],
+    talking_points: ['Only a PO Box — no office confirmed', '$820K transferred to undisclosed entities', 'Incorporated as a for-profit company'],
   },
   {
     id: '69e7f9099606b87211901640',
     name: 'Horizon Multicultural Alliance',
     score: 11,
     risk: 'high',
-    tagline: 'The Ghost Organization',
-    description: 'Legally inactive. Zero employees. Website offline. No financial filings in 2 years. Still receiving $675K in public funding.',
+    tagline: '🚨 Ghost Organization',
+    description: 'This organization shows a legally inactive status, zero employees, and missing financial filings — with no observable operational capacity to deliver any publicly funded services.',
+    verdict: 'Suspend funding. Immediate compliance review required.',
+    verdictClass: 'text-red-700 bg-red-50 border-red-200',
     scoreColor: 'text-red-600',
     borderColor: 'border-red-200',
     bg: 'bg-red-50',
     badgeBg: 'bg-red-100 text-red-800',
     Icon: ShieldX,
     iconClass: 'text-red-500',
-    talking_points: ['Alberta registry: status = inactive', 'Website offline since Nov 2023', 'Zero employees, $675K received'],
+    talking_points: ['Alberta registry: legally inactive since 2026', 'Website offline — no online presence found', 'Zero employees receiving $675K in public funds'],
   },
 ];
 
@@ -96,6 +102,10 @@ export default function DemoSpotlight() {
                   </li>
                 ))}
               </ul>
+
+              <div className={`text-xs font-semibold px-2.5 py-1.5 rounded-lg border ${org.verdictClass}`}>
+                {org.verdict}
+              </div>
 
               <Link
                 to={`/organizations/${org.id}`}

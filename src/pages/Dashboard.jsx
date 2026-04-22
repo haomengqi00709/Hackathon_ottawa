@@ -141,14 +141,25 @@ export default function Dashboard() {
     <div className="space-y-6 max-w-7xl mx-auto">
 
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Capacity Assessment Dashboard</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Structured monitoring of recipient organizational capacity relative to funding commitments and stated deliverables</p>
+      <div className="space-y-2">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">Capacity Assessment Dashboard</h1>
+            <p className="text-sm text-muted-foreground mt-0.5">Structured monitoring of recipient organizational capacity relative to funding commitments and stated deliverables</p>
+          </div>
+          <p className="text-xs text-muted-foreground sm:text-right flex-shrink-0">
+            {latest.length} of {orgs.length} organizations assessed
+          </p>
         </div>
-        <p className="text-xs text-muted-foreground sm:text-right">
-          {latest.length} of {orgs.length} organizations assessed
-        </p>
+        {/* Anchor question */}
+        <div className="rounded-xl border-l-4 border-primary bg-primary/5 px-5 py-4">
+          <p className="text-base font-semibold text-primary leading-snug">
+            Does this organization have the capacity to deliver what it was funded to do?
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Every score, indicator, and finding below is structured to help answer that question — objectively, consistently, and with a documented audit trail.
+          </p>
+        </div>
       </div>
 
       {/* Demo Spotlight */}

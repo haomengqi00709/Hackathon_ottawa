@@ -15,18 +15,18 @@ const DECISION_OPTIONS = [
     icon: ShieldAlert,
     iconClass: 'text-red-500',
     options: [
-      { value: 'do_not_renew',        label: 'Do Not Renew',               desc: 'Capacity concerns are significant enough to recommend non-renewal.' },
-      { value: 'further_review',      label: 'Escalate for Further Review', desc: 'Concern confirmed — requires additional investigation before a final decision.' },
-      { value: 'conditional_funding', label: 'Conditional Funding',         desc: 'Funding may proceed, but with explicit conditions tied to identified capacity gaps.' },
+      { value: 'do_not_renew',        emoji: '❌', label: 'Do Not Renew',               desc: 'Capacity concerns are significant enough to recommend non-renewal of this funding arrangement.', activeClass: 'border-red-400 bg-red-50 ring-1 ring-red-300' },
+      { value: 'further_review',      emoji: '🔍', label: 'Further Review Required',     desc: 'Concern confirmed — requires additional investigation or site verification before a final decision.', activeClass: 'border-orange-400 bg-orange-50 ring-1 ring-orange-300' },
+      { value: 'conditional_funding', emoji: '⚠️', label: 'Conditional / Staged Funding', desc: 'Funding may proceed subject to explicit conditions tied to the identified capacity gaps.', activeClass: 'border-yellow-400 bg-yellow-50 ring-1 ring-yellow-300' },
     ]
   },
   {
     group: 'Modify AI Finding',
     icon: ShieldCheck,
-    iconClass: 'text-yellow-500',
+    iconClass: 'text-green-500',
     options: [
-      { value: 'monitor',    label: 'Monitor',               desc: 'Downgrade the risk — the organization shows some concern but does not require immediate action.' },
-      { value: 'no_concern', label: 'No Concern (Override)',  desc: 'Override the AI assessment entirely. Override rationale is required.' },
+      { value: 'monitor',    emoji: '👁️', label: 'Proceed — Monitor Closely',  desc: 'Risk downgraded. Organization may proceed but will be flagged for enhanced monitoring at next renewal.', activeClass: 'border-blue-400 bg-blue-50 ring-1 ring-blue-300' },
+      { value: 'no_concern', emoji: '✅', label: 'Proceed with Funding',        desc: 'Override the AI assessment. Organization demonstrates sufficient capacity. Override rationale is required.', activeClass: 'border-green-400 bg-green-50 ring-1 ring-green-300' },
     ]
   },
 ];
@@ -135,17 +135,20 @@ export default function InlineReviewDialog({ assessment, org, onClose, onSuccess
                           onClick={() => setForm(p => ({ ...p, finalDecision: opt.value }))}
                           className={`w-full text-left px-3 py-2.5 rounded-lg border transition-all text-sm ${
                             form.finalDecision === opt.value
-                              ? 'border-primary bg-primary/5 ring-1 ring-primary/30'
+                              ? opt.activeClass
                               : 'border-border bg-card hover:bg-muted/50'
                           }`}
                         >
                           <div className="flex items-center justify-between gap-2">
-                            <span className="font-medium">{opt.label}</span>
+                            <span className="font-semibold flex items-center gap-2">
+                              <span className="text-base leading-none">{opt.emoji}</span>
+                              {opt.label}
+                            </span>
                             {IS_OVERRIDE[opt.value] && (
-                              <span className="text-[10px] bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded font-medium">Override</span>
+                              <span className="text-[10px] bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded font-medium flex-shrink-0">Override</span>
                             )}
                           </div>
-                          <p className="text-xs text-muted-foreground mt-0.5">{opt.desc}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5 pl-6">{opt.desc}</p>
                         </button>
                       ))}
                     </div>
