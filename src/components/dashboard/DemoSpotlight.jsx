@@ -1,50 +1,18 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronRight, Presentation, X, AlertTriangle, CheckCircle2, ShieldX } from 'lucide-react';
+import { ChevronRight, Database, X, AlertTriangle, ShieldX, HelpCircle } from 'lucide-react';
 
 const DEMO_ORGS = [
   {
-    id: '69e7f9099606b8721190163e',
-    name: 'Northbridge Youth Futures',
-    score: 82,
-    risk: 'low',
-    tagline: '✅ Aligned & Funded',
-    description: 'This organization is small — but aligned. Their capacity matches their commitment. 14 staff, confirmed office, 60% of spend reaching programs directly. This is the baseline for what good looks like.',
-    verdict: 'Capacity matches commitment. Proceed with confidence.',
-    verdictClass: 'text-green-700 bg-green-50 border-green-200',
-    scoreColor: 'text-green-600',
-    borderColor: 'border-green-200',
-    bg: 'bg-green-50',
-    badgeBg: 'bg-green-100 text-green-800',
-    Icon: CheckCircle2,
-    iconClass: 'text-green-500',
-    talking_points: ['Confirmed physical address on file', 'CRA T4 confirms 14 active employees', '60% of spend reaches program delivery'],
-  },
-  {
-    id: '69e7f9099606b8721190163f',
-    name: 'Clearpath Community Services Inc.',
-    score: 16,
+    id: '51e08533-46a9-5e2e-8ba2-b8295a8b8b3f',
+    name: 'ST FRANCIS ADVOCATES FOR THE AUTISTIC & DEVELOPMENTALLY DIS',
+    province: 'ON',
+    score: 23,
+    ghostScore: 10,
     risk: 'high',
-    tagline: '🚨 Pass-Through Concern',
-    description: 'This organization shows near-total dependency on public funding, critically insufficient staffing, and only 21% of expenses reaching stated programs — with 60% transferred to undisclosed entities.',
-    verdict: 'Formal investigation recommended before any renewal.',
-    verdictClass: 'text-red-700 bg-red-50 border-red-200',
-    scoreColor: 'text-red-600',
-    borderColor: 'border-red-200',
-    bg: 'bg-red-50',
-    badgeBg: 'bg-red-100 text-red-800',
-    Icon: AlertTriangle,
-    iconClass: 'text-red-500',
-    talking_points: ['Only a PO Box — no office confirmed', '$820K transferred to undisclosed entities', 'Incorporated as a for-profit company'],
-  },
-  {
-    id: '69e7f9099606b87211901640',
-    name: 'Horizon Multicultural Alliance',
-    score: 11,
-    risk: 'high',
-    tagline: '🚨 Ghost Organization',
-    description: 'This organization shows a legally inactive status, zero employees, and missing financial filings — with no observable operational capacity to deliver any publicly funded services.',
-    verdict: 'Suspend funding. Immediate compliance review required.',
+    tagline: '🚨 Ghost — Score 10/10',
+    description: 'Claims to serve autistic and developmentally disabled Canadians. Reports zero paid employees and zero program spend while receiving $11.8M in government funding annually.',
+    verdict: 'Formal investigation required before any renewal.',
     verdictClass: 'text-red-700 bg-red-50 border-red-200',
     scoreColor: 'text-red-600',
     borderColor: 'border-red-200',
@@ -52,7 +20,57 @@ const DEMO_ORGS = [
     badgeBg: 'bg-red-100 text-red-800',
     Icon: ShieldX,
     iconClass: 'text-red-500',
-    talking_points: ['Alberta registry: legally inactive since 2026', 'Website offline — no online presence found', 'Zero employees receiving $675K in public funds'],
+    talking_points: [
+      '0 paid employees, 103 volunteers only',
+      '$11,812,531 in government funding received',
+      '$0 reported in program delivery spending',
+    ],
+  },
+  {
+    id: 'e379208d-ec7d-598c-a032-9a2931c4e2eb',
+    name: 'CLEARVIEW PUBLIC LIBRARY BOARD',
+    province: 'ON',
+    score: 23,
+    ghostScore: 10,
+    risk: 'high',
+    tagline: '🚨 Ghost — Score 10/10',
+    description: 'A public library board that reported zero employees, zero program expenditure, and $925K in government funding — with compensation paid despite having no staff on record.',
+    verdict: 'Suspend funding. Compliance audit required.',
+    verdictClass: 'text-red-700 bg-red-50 border-red-200',
+    scoreColor: 'text-red-600',
+    borderColor: 'border-red-200',
+    bg: 'bg-red-50',
+    badgeBg: 'bg-red-100 text-red-800',
+    Icon: AlertTriangle,
+    iconClass: 'text-red-500',
+    talking_points: [
+      '0 employees — compensation paid with no staff',
+      '$925,532 in public funding, $0 program spend',
+      'Legally registered as active charity',
+    ],
+  },
+  {
+    id: 'd40df911-ed58-5e17-a9fe-fdba92539915',
+    name: 'THE GEORGE SPADY CENTRE SOCIETY',
+    province: 'AB',
+    score: 42,
+    ghostScore: 7,
+    risk: 'moderate',
+    tagline: '⚠️ Borderline — Score 7/10',
+    description: 'An Alberta shelter society with $14.7M in government funding and meaningful program spend — but zero reported employees. Compensation is paid with no identifiable workforce.',
+    verdict: 'Enhanced monitoring recommended at renewal.',
+    verdictClass: 'text-orange-700 bg-orange-50 border-orange-200',
+    scoreColor: 'text-orange-600',
+    borderColor: 'border-orange-200',
+    bg: 'bg-orange-50',
+    badgeBg: 'bg-orange-100 text-orange-800',
+    Icon: HelpCircle,
+    iconClass: 'text-orange-500',
+    talking_points: [
+      '0 paid employees, 72 volunteers',
+      '$14,738,806 govt funding — 95% dependency',
+      '$13,976,485 in program spend (positive signal)',
+    ],
   },
 ];
 
@@ -62,18 +80,18 @@ export default function DemoSpotlight() {
 
   return (
     <div className="rounded-xl border border-primary/20 bg-primary/5 overflow-hidden">
-      {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-primary/15 bg-primary/10">
         <div className="flex items-center gap-2">
-          <Presentation className="w-4 h-4 text-primary" />
-          <span className="text-xs font-bold uppercase tracking-widest text-primary">Demo Scenario — 3 Fictional Organizations</span>
+          <Database className="w-4 h-4 text-primary" />
+          <span className="text-xs font-bold uppercase tracking-widest text-primary">
+            Real Cases — CRA T3010 Data
+          </span>
         </div>
         <button onClick={() => setDismissed(true)} className="text-muted-foreground hover:text-foreground transition-colors">
           <X className="w-4 h-4" />
         </button>
       </div>
 
-      {/* Cards */}
       <div className="grid md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-border">
         {DEMO_ORGS.map((org) => {
           const Icon = org.Icon;
@@ -85,6 +103,7 @@ export default function DemoSpotlight() {
                     {org.tagline}
                   </span>
                   <p className="font-semibold text-sm leading-snug">{org.name}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{org.province} · CRA Registered Charity</p>
                 </div>
                 <div className="flex flex-col items-center flex-shrink-0">
                   <span className={`text-2xl font-bold tabular-nums leading-none ${org.scoreColor}`}>{org.score}</span>
