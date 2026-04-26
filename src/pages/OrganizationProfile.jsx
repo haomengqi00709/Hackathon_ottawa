@@ -29,13 +29,23 @@ export default function OrganizationProfile() {
   const { data: funding = [] } = useQuery({ queryKey: ['funding', orgId], queryFn: () => base44.entities.FundingRecords.filter({ organizationId: orgId }) });
   const { data: financials = [] } = useQuery({ queryKey: ['financials', orgId], queryFn: () => base44.entities.FinancialIndicators.filter({ organizationId: orgId }) });
   const { data: assessments = [] } = useQuery({ queryKey: ['assessments-org', orgId], queryFn: () => base44.entities.CapacityAssessments.filter({ organizationId: orgId }) });
+  const { data: allBenchmarks = [] } = useQuery({ queryKey: ['benchmarks'], queryFn: () => base44.entities.Benchmarks.list() });
+  const { data: allMappings = [] } = useQuery({ queryKey: ['benchmark-mappings'], queryFn: () => base44.entities.BenchmarkMappings.list() });
 
   const latestAssessment = assessments.sort((a, b) => new Date(b.assessmentDate) - new Date(a.assessmentDate))[0];
+
+  // Resolve which benchmark applies to this org's type
+  const resolvedBenchmark = (() => {
+    if (!org || allMappings.length === 0 || allBenchmarks.length === 0) return null;
+    const mapping = allMappings.find(m => m.organizationType === org.organizationType);
+    if (!mapping) return null;
+    return allBenchmarks.find(b => b.id === mapping.benchmarkId) || null;
+  })();
 
   const runAssessment = async () => {
     if (!org) return;
     setIsRunning(true);
-    const scores = calculateCapacityScores(org, funding, financials, []);
+    const scores = calculateCapacityScores(org, funding, financials, [], resolvedBenchmark);
 
     let aiSummary = '';
     try {
@@ -74,7 +84,7 @@ Reflect the Risk Nature Classification in your summary. Write in neutral, eviden
       whyThisCase: JSON.stringify(scores.whyThisCase),
       humanReviewRequired: scores.humanReviewRequired,
       reviewerStatus: scores.humanReviewRequired ? 'needs_review' : 'validated',
-      benchmarkCategory: scores.riskLevel,
+      benchmarkCategory: scores.benchmarkCategory || '',
     });
 
     qc.invalidateQueries({ queryKey: ['assessments-org', orgId] });

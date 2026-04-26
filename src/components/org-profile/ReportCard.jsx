@@ -268,10 +268,18 @@ export default function ReportCard({ assessment, org, funding, financials, onRec
               <p className="text-muted-foreground">A higher composite risk score → higher concern classification. The Decision Engine recommendation and confidence level are both derived from this composite.</p>
             </div>
 
-            <div className="border-t border-border pt-3 space-y-1">
-              <p className="font-semibold text-foreground">Note on Benchmarks:</p>
-              <p className="text-muted-foreground">Custom benchmarks (defined in the Benchmarks page) set category-level expectations. They are used as reference context for reviewers but are not currently applied as automatic score modifiers. All scoring thresholds are built into the engine rules above.</p>
-            </div>
+            {assessment?.benchmarkCategory && (
+              <div className="border-t border-border pt-3 space-y-1">
+                <p className="font-semibold text-foreground">Benchmark Applied: <span className="font-normal text-primary">{assessment.benchmarkCategory}</span></p>
+                <p className="text-muted-foreground">A category benchmark was matched to this organization's type and applied as score modifiers before the final roll-up. Modifiers appear as individual indicator findings tagged with the benchmark name. You can review and change benchmark mappings on the Benchmarks page.</p>
+              </div>
+            )}
+            {!assessment?.benchmarkCategory && (
+              <div className="border-t border-border pt-3 space-y-1">
+                <p className="font-semibold text-foreground">Benchmarks:</p>
+                <p className="text-muted-foreground">No benchmark profile was mapped to this organization's type at the time of assessment. You can configure Benchmark Mappings on the Benchmarks page — re-running the assessment will then apply the matched benchmark as score modifiers.</p>
+              </div>
+            )}
           </div>
         )}
       </Section>

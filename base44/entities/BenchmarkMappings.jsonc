@@ -1,0 +1,22 @@
+{
+  "name": "BenchmarkMappings",
+  "type": "object",
+  "properties": {
+    "organizationType": {
+      "type": "string",
+      "description": "The organization type this mapping applies to (e.g. nonprofit, charity, company, cooperative, other)"
+    },
+    "benchmarkId": {
+      "type": "string",
+      "description": "ID of the Benchmark record to apply"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Optional notes explaining this mapping decision"
+    }
+  },
+  "required": [
+    "organizationType",
+    "benchmarkId"
+  ]
+}
