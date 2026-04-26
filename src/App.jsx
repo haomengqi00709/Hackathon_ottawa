@@ -15,6 +15,8 @@ import ReviewQueue from '@/pages/ReviewQueue';
 import BenchmarksPage from '@/pages/BenchmarksPage';
 import SettingsPage from '@/pages/SettingsPage';
 import IntakePage from '@/pages/IntakePage';
+import AnalysisLab from '@/pages/AnalysisLab';
+import DataExplorer from '@/pages/DataExplorer';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -46,6 +48,8 @@ const AuthenticatedApp = () => {
         <Route path="/review-queue" element={<ReviewQueue />} />
         <Route path="/benchmarks" element={<BenchmarksPage />} />
         <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/lab" element={<AnalysisLab />} />
+        <Route path="/explorer" element={<DataExplorer />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>
