@@ -15,6 +15,7 @@ import ReviewQueue from '@/pages/ReviewQueue';
 import BenchmarksPage from '@/pages/BenchmarksPage';
 import SettingsPage from '@/pages/SettingsPage';
 import IntakePage from '@/pages/IntakePage';
+import MismatchEngine from '@/pages/MismatchEngine';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -46,6 +47,7 @@ const AuthenticatedApp = () => {
         <Route path="/review-queue" element={<ReviewQueue />} />
         <Route path="/benchmarks" element={<BenchmarksPage />} />
         <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/mismatch" element={<MismatchEngine />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>

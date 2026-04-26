@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Building2, ClipboardCheck, FileSearch,
-  ListChecks, Sliders, Settings, Shield, Menu, X, ChevronRight, ClipboardList
+  ListChecks, Sliders, Settings, Shield, Menu, X, ChevronRight, ClipboardList, ScanSearch
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -11,6 +11,7 @@ const navItems = [
   { path: '/organizations', label: 'Organizations', icon: Building2 },
   { path: '/intake', label: 'Intake', icon: ClipboardList },
   { path: '/review-queue', label: 'Review Queue', icon: ListChecks },
+  { path: '/mismatch', label: 'Mismatch Engine', icon: ScanSearch },
   { path: '/benchmarks', label: 'Benchmarks', icon: Sliders },
   { path: '/settings', label: 'Settings', icon: Settings },
 ];
