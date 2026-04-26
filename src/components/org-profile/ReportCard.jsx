@@ -58,6 +58,7 @@ function Section({ title, badge, badgeStyle, children }) {
 // ─── MAIN REPORT CARD ─────────────────────────────────────────────────────────
 export default function ReportCard({ assessment, org, funding, financials, onRecordDecision }) {
   const [showIndicators, setShowIndicators] = useState(false);
+  const [showScoring, setShowScoring] = useState(false);
 
   // Run live engines from current entity data
   const mismatchInput = buildMismatchInput(org, financials, funding);
@@ -70,6 +71,7 @@ export default function ReportCard({ assessment, org, funding, financials, onRec
     organization_name: org.organizationName,
     mismatch_score: mismatch.mismatch_score,
     pattern_score: pattern.pattern_score,
+    capacity_score: assessment?.overallCapacityScore ?? null,
     mismatch_classification: mismatch.classification,
     pattern_classification: pattern.classification,
     triggered_mismatch_rules: mismatch.triggered_rules,
@@ -220,6 +222,59 @@ export default function ReportCard({ assessment, org, funding, financials, onRec
           )}
         </Section>
       )}
+
+      {/* ── HOW THIS WAS SCORED ── */}
+      <Section title="How This Was Scored">
+        <button
+          onClick={() => setShowScoring(v => !v)}
+          className="text-xs flex items-center gap-1 font-medium text-muted-foreground hover:text-foreground transition-colors"
+        >
+          {showScoring ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+          {showScoring ? 'Hide scoring methodology' : 'Show scoring methodology'}
+        </button>
+        {showScoring && (
+          <div className="space-y-3 text-xs leading-relaxed border border-border rounded-xl p-4 bg-muted/30">
+            <p className="font-semibold text-foreground">Three engines combine to produce this report card:</p>
+
+            <div className="space-y-2">
+              <div className="flex gap-3">
+                <div className="w-2 h-2 rounded-full bg-primary mt-1.5 flex-shrink-0" />
+                <div>
+                  <p className="font-semibold text-foreground">1. Capacity Score <span className="font-normal text-muted-foreground">(35% of decision)</span></p>
+                  <p className="text-muted-foreground">Six weighted dimensions — Delivery Plausibility (25%), Program Spending (25%), Staffing (20%), Revenue Diversity (15%), Infrastructure (10%), Compliance (5%) — scored 0–100 and saved to this assessment record.</p>
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <div className="w-2 h-2 rounded-full bg-orange-400 mt-1.5 flex-shrink-0" />
+                <div>
+                  <p className="font-semibold text-foreground">2. Mismatch Score <span className="font-normal text-muted-foreground">(35% of decision)</span></p>
+                  <p className="text-muted-foreground">Checks for internal contradictions in the submitted data: compensation without staff, funding without program activity, weak governance relative to funding size, and program claims without an operational footprint. Each triggered rule adds 25 points (max 100).</p>
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <div className="w-2 h-2 rounded-full bg-purple-400 mt-1.5 flex-shrink-0" />
+                <div>
+                  <p className="font-semibold text-foreground">3. Pattern Score <span className="font-normal text-muted-foreground">(30% of decision)</span></p>
+                  <p className="text-muted-foreground">Analyses multi-year financial history (requires at least 2 years of data) for sustained patterns: sustained zero program activity, declining program spend, funding growth without activity growth, and persistently low program ratios.</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="border-t border-border pt-3 space-y-1">
+              <p className="font-semibold text-foreground">Decision Engine composite formula:</p>
+              <p className="text-muted-foreground font-mono bg-background rounded-md px-3 py-1.5 text-[11px]">
+                Composite Risk = (Mismatch × 35%) + (Pattern × 30%) + ((100 − Capacity) × 35%)
+              </p>
+              <p className="text-muted-foreground">A higher composite risk score → higher concern classification. The Decision Engine recommendation and confidence level are both derived from this composite.</p>
+            </div>
+
+            <div className="border-t border-border pt-3 space-y-1">
+              <p className="font-semibold text-foreground">Note on Benchmarks:</p>
+              <p className="text-muted-foreground">Custom benchmarks (defined in the Benchmarks page) set category-level expectations. They are used as reference context for reviewers but are not currently applied as automatic score modifiers. All scoring thresholds are built into the engine rules above.</p>
+            </div>
+          </div>
+        )}
+      </Section>
 
       <p className="text-[10px] text-muted-foreground border-t border-border pt-3">
         This report card is generated from structured indicators. It is advisory only and does not constitute a determination of misconduct or non-compliance. All funding decisions require a documented reviewer decision.

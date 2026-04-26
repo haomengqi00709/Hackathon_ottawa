@@ -36,13 +36,27 @@ export default function DecisionEngine() {
     queryKey: ['financials-all'],
     queryFn: () => base44.entities.FinancialIndicators.list(),
   });
+  const { data: allAssessments = [] } = useQuery({
+    queryKey: ['assessments'],
+    queryFn: () => base44.entities.CapacityAssessments.list(),
+  });
 
   const loading = loadingOrgs || loadingFunding || loadingFin;
 
   const results = useMemo(() => {
+    // Build a map of latest assessment per org
+    const latestAssessmentMap = {};
+    allAssessments.forEach(a => {
+      const prev = latestAssessmentMap[a.organizationId];
+      if (!prev || new Date(a.assessmentDate) > new Date(prev.assessmentDate)) {
+        latestAssessmentMap[a.organizationId] = a;
+      }
+    });
+
     return orgs.map(org => {
       const funding = allFunding.filter(f => f.organizationId === org.id);
       const financials = allFinancials.filter(f => f.organizationId === org.id);
+      const latestAssessment = latestAssessmentMap[org.id];
 
       // Run mismatch engine
       const mismatchInput = buildMismatchInput(org, funding, financials);
@@ -52,11 +66,12 @@ export default function DecisionEngine() {
       const patternInput = buildCredibilityInput(financials);
       const pattern = runCredibilityEngine(org.organizationName, patternInput);
 
-      // Run decision engine
+      // Run decision engine — include capacity score from stored assessment if available
       const decision = runDecisionEngine({
         organization_name: org.organizationName,
         mismatch_score: mismatch.mismatch_score,
         pattern_score: pattern.pattern_score,
+        capacity_score: latestAssessment?.overallCapacityScore ?? null,
         mismatch_classification: mismatch.classification,
         pattern_classification: pattern.classification,
         triggered_mismatch_rules: mismatch.triggered_rules,

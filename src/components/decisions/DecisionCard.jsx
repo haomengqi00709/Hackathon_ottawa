@@ -45,7 +45,21 @@ export default function DecisionCard({ result, orgId }) {
         </div>
 
         {/* Score bars */}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-3 gap-3">
+          {result.capacity_score !== null && result.capacity_score !== undefined && (
+            <div className="space-y-1">
+              <div className="flex justify-between text-xs">
+                <span className="text-muted-foreground">Capacity</span>
+                <span className="font-bold tabular-nums">{result.capacity_score}</span>
+              </div>
+              <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+                <div
+                  className={`h-full rounded-full ${result.capacity_score >= 68 ? 'bg-green-500' : result.capacity_score >= 40 ? 'bg-yellow-400' : 'bg-red-500'}`}
+                  style={{ width: `${result.capacity_score}%` }}
+                />
+              </div>
+            </div>
+          )}
           <div className="space-y-1">
             <div className="flex justify-between text-xs">
               <span className="text-muted-foreground">Mismatch</span>
@@ -94,6 +108,12 @@ export default function DecisionCard({ result, orgId }) {
           <div className="rounded-lg border border-border bg-card/80 px-3 py-3 space-y-2">
             <p className="text-xs font-semibold text-foreground mb-1">Signal Summary</p>
             <div className="grid grid-cols-2 gap-2 text-xs">
+              {result.capacity_score !== null && result.capacity_score !== undefined && (
+                <div>
+                  <p className="text-muted-foreground font-medium mb-1">Capacity Score</p>
+                  <p className="font-bold text-lg tabular-nums">{result.capacity_score}<span className="text-muted-foreground text-xs font-normal">/100</span></p>
+                </div>
+              )}
               <div>
                 <p className="text-muted-foreground font-medium mb-1">Mismatch Score</p>
                 <p className="font-bold text-lg tabular-nums">{result.mismatch_score}<span className="text-muted-foreground text-xs font-normal">/100</span></p>
@@ -107,12 +127,12 @@ export default function DecisionCard({ result, orgId }) {
                 <p className={`font-semibold ${RISK_COLORS[result.overall_risk_level]}`}>{result.overall_risk_level}</p>
               </div>
               <div>
-                <p className="text-muted-foreground font-medium mb-1">Action Confidence</p>
-                <p className="font-semibold">{result.action_confidence}%</p>
+                <p className="text-muted-foreground font-medium mb-1">Composite Risk</p>
+                <p className="font-semibold">{result.composite_risk_score ?? result.action_confidence}%</p>
               </div>
             </div>
             <p className="text-[10px] text-muted-foreground pt-1 border-t border-border">
-              Action confidence reflects the combined strength of mismatch and pattern signals. Higher confidence means more data points corroborate the recommendation — it does not imply a final determination.
+              Composite Risk = Mismatch (35%) + Pattern (30%) + Capacity Risk (35%). All three engines contribute to the final classification. A capacity score requires a completed assessment on the organization profile.
             </p>
           </div>
         )}

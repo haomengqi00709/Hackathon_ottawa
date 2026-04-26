@@ -71,8 +71,9 @@ const CLASSIFICATION_STATEMENTS = {
 /**
  * @param {Object} input
  * @param {string} input.organization_name
- * @param {number} input.mismatch_score        0–100
- * @param {number} input.pattern_score         0–100
+ * @param {number} input.mismatch_score           0–100 (internal data contradictions)
+ * @param {number} input.pattern_score            0–100 (multi-year behavioral trends)
+ * @param {number} [input.capacity_score]         0–100 (weighted capacity score from scoringEngine)
  * @param {string} input.mismatch_classification
  * @param {string} input.pattern_classification
  * @param {Array}  input.triggered_mismatch_rules
@@ -83,6 +84,7 @@ export function runDecisionEngine(input) {
     organization_name = 'Unknown Organization',
     mismatch_score = 0,
     pattern_score = 0,
+    capacity_score = null,
     triggered_mismatch_rules = [],
     triggered_pattern_rules = [],
   } = input;
@@ -90,17 +92,33 @@ export function runDecisionEngine(input) {
   const ms = Math.max(0, Math.min(100, mismatch_score));
   const ps = Math.max(0, Math.min(100, pattern_score));
 
-  // ─── STEP 1: OVERALL RISK LEVEL ─────────────────────────────────────────
+  // Invert capacity score into a "capacity risk" (0 = great capacity, 100 = very poor capacity)
+  // Only applied when a capacity score is provided (not null)
+  const cs_risk = capacity_score !== null ? Math.max(0, Math.min(100, 100 - capacity_score)) : null;
+
+  // ─── STEP 1: COMPOSITE RISK SCORE ───────────────────────────────────────
+  // If capacity score is available: weight all three engines
+  // Otherwise: fall back to mismatch + pattern only
+  let composite_risk_score;
+  if (cs_risk !== null) {
+    // Mismatch 35% + Pattern 30% + Capacity 35%
+    composite_risk_score = Math.round(ms * 0.35 + ps * 0.30 + cs_risk * 0.35);
+  } else {
+    // Mismatch 50% + Pattern 50%
+    composite_risk_score = Math.round((ms + ps) / 2);
+  }
+
+  // ─── STEP 2: OVERALL RISK LEVEL ─────────────────────────────────────────
   let overall_risk_level;
-  if (ms >= 75 || ps >= 75) {
+  if (composite_risk_score >= 60 || ms >= 75 || ps >= 75 || cs_risk >= 75) {
     overall_risk_level = 'High';
-  } else if (ms >= 25 || ps >= 25) {
+  } else if (composite_risk_score >= 25 || ms >= 25 || ps >= 25 || (cs_risk !== null && cs_risk >= 35)) {
     overall_risk_level = 'Moderate';
   } else {
     overall_risk_level = 'Low';
   }
 
-  // ─── STEP 2: CLASSIFICATION ──────────────────────────────────────────────
+  // ─── STEP 3: CLASSIFICATION ──────────────────────────────────────────────
   let classification;
   if (overall_risk_level === 'Low') {
     classification = 'Healthy / Ready';
@@ -112,14 +130,20 @@ export function runDecisionEngine(input) {
     classification = 'High Concern';
   }
 
-  // ─── STEP 3: ACTION MAPPING ──────────────────────────────────────────────
+  // ─── STEP 4: ACTION MAPPING ──────────────────────────────────────────────
   const recommended_action = ACTION_MAP[classification];
 
-  // ─── STEP 4: ACTION CONFIDENCE ───────────────────────────────────────────
-  const action_confidence = Math.min(100, Math.round((ms + ps) / 2));
+  // ─── STEP 5: ACTION CONFIDENCE ───────────────────────────────────────────
+  // Confidence is higher when all three engines agree
+  const action_confidence = Math.min(100, Math.round(composite_risk_score));
 
-  // ─── STEP 5: EXPLANATION ENGINE ──────────────────────────────────────────
+  // ─── STEP 6: EXPLANATION ENGINE ──────────────────────────────────────────
   const parts = [CLASSIFICATION_STATEMENTS[classification]];
+
+  if (capacity_score !== null) {
+    const capLabel = capacity_score >= 68 ? 'low concern' : capacity_score >= 40 ? 'moderate concern' : 'high concern';
+    parts.push(`Capacity score: ${capacity_score}/100 (${capLabel}).`);
+  }
 
   const mismatchSignals = (triggered_mismatch_rules || []).slice(0, 2);
   const patternSignals = (triggered_pattern_rules || []).slice(0, 2);
@@ -142,6 +166,8 @@ export function runDecisionEngine(input) {
     organization_name,
     mismatch_score: ms,
     pattern_score: ps,
+    capacity_score,
+    composite_risk_score,
     overall_risk_level,
     classification,
     recommended_action,
