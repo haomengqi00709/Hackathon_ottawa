@@ -16,6 +16,7 @@ import BenchmarksPage from '@/pages/BenchmarksPage';
 import SettingsPage from '@/pages/SettingsPage';
 import IntakePage from '@/pages/IntakePage';
 import MismatchEngine from '@/pages/MismatchEngine';
+import CredibilityEngine from '@/pages/CredibilityEngine';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -48,6 +49,7 @@ const AuthenticatedApp = () => {
         <Route path="/benchmarks" element={<BenchmarksPage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/mismatch" element={<MismatchEngine />} />
+        <Route path="/credibility" element={<CredibilityEngine />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>
