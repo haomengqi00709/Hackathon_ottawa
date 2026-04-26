@@ -12,6 +12,7 @@ import FinancialsPanel from '@/components/org-profile/FinancialsPanel';
 import EvidencePanel from '@/components/org-profile/EvidencePanel';
 import ReviewHistoryPanel from '@/components/org-profile/ReviewHistoryPanel';
 import InlineReviewDialog from '@/components/org-profile/InlineReviewDialog';
+import ExternalValidationPanel from '@/components/org-profile/ExternalValidationPanel';
 import { calculateCapacityScores } from '@/lib/scoringEngine';
 
 export default function OrganizationProfile() {
@@ -119,6 +120,7 @@ Write in neutral, evidence-based language. End with a recommended next step appr
           <TabsTrigger value="financials">Financials ({financials.length})</TabsTrigger>
           <TabsTrigger value="evidence">Evidence ({evidence.length})</TabsTrigger>
           <TabsTrigger value="reviews">Reviews ({decisions.length})</TabsTrigger>
+          <TabsTrigger value="external">External Validation</TabsTrigger>
         </TabsList>
         <TabsContent value="assessment" className="mt-4">
           {latestAssessment ? <AssessmentPanel assessment={latestAssessment} onRecordDecision={() => setShowReviewDialog(true)} /> : (
@@ -132,6 +134,9 @@ Write in neutral, evidence-based language. End with a recommended next step appr
         <TabsContent value="financials" className="mt-4"><FinancialsPanel records={financials} /></TabsContent>
         <TabsContent value="evidence" className="mt-4"><EvidencePanel items={evidence} /></TabsContent>
         <TabsContent value="reviews" className="mt-4"><ReviewHistoryPanel decisions={decisions} /></TabsContent>
+        <TabsContent value="external" className="mt-4">
+          <ExternalValidationPanel org={org} />
+        </TabsContent>
       </Tabs>
 
       {showReviewDialog && latestAssessment && (
