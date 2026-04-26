@@ -40,7 +40,7 @@ export default function MismatchEngine() {
     return orgs.map(org => {
       const financials = allFinancials.filter(f => f.organizationId === org.id);
       const funding = allFunding.filter(f => f.organizationId === org.id);
-      const input = buildMismatchInput(org, financials, funding);
+      const input = buildMismatchInput(org, funding, financials);
       const result = runMismatchEngine(input);
       return { ...result, orgId: org.id };
     }).sort((a, b) => b.mismatch_score - a.mismatch_score);

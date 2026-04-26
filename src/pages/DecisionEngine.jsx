@@ -46,7 +46,7 @@ export default function DecisionEngine() {
 
       // Run mismatch engine
       const mismatchInput = buildMismatchInput(org, funding, financials);
-      const mismatch = runMismatchEngine(org.organizationName, mismatchInput);
+      const mismatch = runMismatchEngine(mismatchInput);
 
       // Run credibility (pattern) engine
       const patternInput = buildCredibilityInput(financials);

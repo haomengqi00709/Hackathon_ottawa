@@ -1,0 +1,229 @@
+import React, { useState } from 'react';
+import { AlertTriangle, CheckCircle2, AlertCircle, ChevronDown, ChevronUp, ClipboardCheck, ShieldAlert, HelpCircle, Zap } from 'lucide-react';
+import { getRiskColor, SCORE_WEIGHTS, getScoreColor } from '@/lib/scoringEngine';
+import { runMismatchEngine, buildMismatchInput, getMismatchStyle } from '@/lib/mismatchEngine';
+import { runCredibilityEngine, buildCredibilityInput, getPatternStyle } from '@/lib/credibilityEngine';
+import { runDecisionEngine, getDecisionStyle } from '@/lib/decisionEngine';
+import { Button } from '@/components/ui/button';
+
+// ─── SCORE BAR ────────────────────────────────────────────────────────────────
+function ScoreBar({ scoreKey, value }) {
+  const [tip, setTip] = useState(false);
+  const meta = SCORE_WEIGHTS[scoreKey];
+  if (!meta) return null;
+  const v = value ?? 0;
+  const bar = v >= 68 ? 'bg-green-500' : v >= 40 ? 'bg-yellow-400' : 'bg-red-500';
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1 min-w-0">
+          <span className="text-xs font-medium text-foreground truncate">{meta.label}</span>
+          <div className="relative flex-shrink-0">
+            <button className="text-muted-foreground hover:text-foreground" onMouseEnter={() => setTip(true)} onMouseLeave={() => setTip(false)}>
+              <HelpCircle className="w-3 h-3" />
+            </button>
+            {tip && (
+              <div className="absolute z-50 left-5 top-0 w-64 bg-popover border border-border rounded-lg shadow-lg p-2.5 text-xs leading-relaxed">
+                <p className="font-semibold mb-1">{meta.label} <span className="text-muted-foreground font-normal">({meta.pct})</span></p>
+                <p className="text-muted-foreground">{meta.tooltip}</p>
+              </div>
+            )}
+          </div>
+        </div>
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          <span className="text-[10px] text-muted-foreground">{meta.pct}</span>
+          <span className={`text-xs font-bold tabular-nums w-7 text-right ${getScoreColor(v)}`}>{v}</span>
+        </div>
+      </div>
+      <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+        <div className={`h-full rounded-full ${bar}`} style={{ width: `${v}%` }} />
+      </div>
+    </div>
+  );
+}
+
+// ─── SECTION WRAPPER ──────────────────────────────────────────────────────────
+function Section({ title, badge, badgeStyle, children }) {
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <h3 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">{title}</h3>
+        {badge && <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${badgeStyle}`}>{badge}</span>}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+// ─── MAIN REPORT CARD ─────────────────────────────────────────────────────────
+export default function ReportCard({ assessment, org, funding, financials, onRecordDecision }) {
+  const [showIndicators, setShowIndicators] = useState(false);
+
+  // Run live engines from current entity data
+  const mismatchInput = buildMismatchInput(org, financials, funding);
+  const mismatch = runMismatchEngine(mismatchInput);
+
+  const patternInput = buildCredibilityInput(financials);
+  const pattern = runCredibilityEngine(org.organizationName, patternInput);
+
+  const decision = runDecisionEngine({
+    organization_name: org.organizationName,
+    mismatch_score: mismatch.mismatch_score,
+    pattern_score: pattern.pattern_score,
+    mismatch_classification: mismatch.classification,
+    pattern_classification: pattern.classification,
+    triggered_mismatch_rules: mismatch.triggered_rules,
+    triggered_pattern_rules: pattern.triggered_rules,
+  });
+
+  const decisionStyle = getDecisionStyle(decision.classification);
+  const mStyle = getMismatchStyle(mismatch.classification);
+  const pStyle = getPatternStyle(pattern.classification);
+
+  const riskColors = getRiskColor(assessment?.riskLevel || 'low');
+  const overallScore = assessment?.overallCapacityScore ?? null;
+
+  let factors = [];
+  if (assessment?.explanationFactors) {
+    try { factors = JSON.parse(assessment.explanationFactors); } catch {}
+  }
+  const highFactors = factors.filter(f => f.severity === 'high');
+  const otherFactors = factors.filter(f => f.severity !== 'high');
+  const needsReview = assessment?.humanReviewRequired &&
+    (assessment?.reviewerStatus === 'needs_review' || assessment?.reviewerStatus === 'pending');
+
+  const SCORE_KEYS = ['deliveryPlausibilityScore', 'programExpenseScore', 'staffingScore', 'revenueDiversityScore', 'infrastructureScore', 'complianceScore'];
+
+  return (
+    <div className="space-y-5">
+
+      {/* ── REVIEWER ALERT ── */}
+      {needsReview && (
+        <div className="flex items-center gap-3 rounded-xl border border-orange-300 bg-orange-50 p-4">
+          <ShieldAlert className="w-5 h-5 text-orange-500 flex-shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-orange-800">Reviewer Decision Required</p>
+            <p className="text-xs text-orange-700 mt-0.5">This assessment is classified as {assessment.riskLevel} concern. A documented decision is required before any funding determination.</p>
+          </div>
+          {onRecordDecision && (
+            <Button size="sm" onClick={onRecordDecision} className="flex-shrink-0 gap-1.5 text-xs bg-orange-600 hover:bg-orange-700">
+              <ClipboardCheck className="w-3.5 h-3.5" /> Record Decision
+            </Button>
+          )}
+        </div>
+      )}
+
+      {/* ── DECISION RECOMMENDATION ── */}
+      <div className={`rounded-xl border ${decisionStyle.border} ${decisionStyle.bg} p-4 space-y-2`}>
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <Zap className={`w-4 h-4 flex-shrink-0 ${decisionStyle.color}`} />
+            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Decision Engine Recommendation</span>
+          </div>
+          <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${decisionStyle.badge}`}>{decision.classification}</span>
+        </div>
+        <p className={`text-sm font-semibold ${decisionStyle.color}`}>{decision.recommended_action}</p>
+        <p className="text-xs text-muted-foreground leading-relaxed">{decision.explanation_text}</p>
+        <div className="flex items-center gap-3 text-xs text-muted-foreground pt-1">
+          <span>Overall Risk: <strong className={decisionStyle.color}>{decision.overall_risk_level}</strong></span>
+          <span>·</span>
+          <span>Confidence: <strong>{decision.action_confidence}%</strong></span>
+        </div>
+      </div>
+
+      {/* ── THREE SCORES IN A ROW ── */}
+      <div className="grid grid-cols-3 gap-3">
+        {/* Capacity Score */}
+        <div className={`rounded-xl border p-3 text-center ${overallScore !== null ? riskColors.bg + ' ' + riskColors.border : 'bg-muted/40 border-border'}`}>
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">Capacity</p>
+          <p className={`text-3xl font-bold leading-none ${overallScore !== null ? getScoreColor(overallScore) : 'text-muted-foreground'}`}>
+            {overallScore ?? '–'}
+          </p>
+          <p className="text-[10px] text-muted-foreground mt-1">/100</p>
+        </div>
+        {/* Mismatch Score */}
+        <div className={`rounded-xl border p-3 text-center ${mStyle.bg} ${mStyle.border}`}>
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">Mismatch</p>
+          <p className={`text-3xl font-bold leading-none ${mStyle.text}`}>{mismatch.mismatch_score}</p>
+          <p className="text-[10px] text-muted-foreground mt-1">/100</p>
+        </div>
+        {/* Pattern Score */}
+        <div className={`rounded-xl border p-3 text-center ${pStyle.bg} ${pStyle.border}`}>
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">Pattern</p>
+          <p className={`text-3xl font-bold leading-none ${pStyle.text}`}>{pattern.pattern_score}</p>
+          <p className="text-[10px] text-muted-foreground mt-1">/100</p>
+        </div>
+      </div>
+
+      {/* ── SIGNAL PILLS ── */}
+      {(mismatch.triggered_rules.length > 0 || pattern.triggered_rules.length > 0) && (
+        <Section title="Active Signals">
+          <div className="flex flex-wrap gap-1.5">
+            {mismatch.triggered_rules.map(r => (
+              <span key={r.id} className={`text-[11px] font-medium px-2 py-0.5 rounded-full border ${mStyle.badge} ${mStyle.border}`}>
+                ⚡ {r.label}
+              </span>
+            ))}
+            {pattern.triggered_rules.map(r => (
+              <span key={r.id} className={`text-[11px] font-medium px-2 py-0.5 rounded-full border ${pStyle.badge} ${pStyle.border}`}>
+                📈 {r.label}
+              </span>
+            ))}
+          </div>
+        </Section>
+      )}
+
+      {/* ── CAPACITY DIMENSIONS ── */}
+      {assessment && (
+        <Section title="Capacity Dimensions">
+          <div className="space-y-2.5">
+            {SCORE_KEYS.map(k => <ScoreBar key={k} scoreKey={k} value={assessment[k]} />)}
+          </div>
+          <p className="text-[10px] text-muted-foreground">68+ = Low concern · 40–67 = Moderate · 0–39 = High concern</p>
+        </Section>
+      )}
+
+      {/* ── AI NARRATIVE ── */}
+      {assessment?.aiSummary && (
+        <Section title="Assessment Narrative">
+          <p className="text-sm leading-relaxed text-muted-foreground">{assessment.aiSummary}</p>
+        </Section>
+      )}
+
+      {/* ── INDICATOR FINDINGS (collapsible) ── */}
+      {factors.length > 0 && (
+        <Section title="Indicator Findings">
+          <button
+            onClick={() => setShowIndicators(v => !v)}
+            className="text-xs flex items-center gap-1 font-medium text-muted-foreground hover:text-foreground transition-colors"
+          >
+            {showIndicators ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+            {showIndicators ? 'Hide' : `Show ${factors.length} indicator${factors.length > 1 ? 's' : ''}`}
+          </button>
+          {showIndicators && (
+            <div className="space-y-1.5">
+              {[...highFactors, ...otherFactors].map((f, i) => {
+                const colors = { high: 'bg-red-50 border-red-200 text-red-700', moderate: 'bg-yellow-50 border-yellow-200 text-yellow-700', low: 'bg-green-50 border-green-200 text-green-700' };
+                const icons = { high: AlertTriangle, moderate: AlertCircle, low: CheckCircle2 };
+                const Icon = icons[f.severity] || AlertCircle;
+                return (
+                  <div key={i} className={`flex items-start gap-2 p-2.5 rounded-lg border text-xs ${colors[f.severity] || colors.moderate}`}>
+                    <Icon className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <span className="font-semibold uppercase tracking-wide text-[10px]">{f.area}</span>
+                      <p className="mt-0.5 leading-snug">{f.detail}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </Section>
+      )}
+
+      <p className="text-[10px] text-muted-foreground border-t border-border pt-3">
+        This report card is generated from structured indicators. It is advisory only and does not constitute a determination of misconduct or non-compliance. All funding decisions require a documented reviewer decision.
+      </p>
+    </div>
+  );
+}
