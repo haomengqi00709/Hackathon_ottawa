@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { FlaskConical, Wifi, WifiOff, RefreshCw, SlidersHorizontal, BarChart3, Users, DollarSign } from 'lucide-react';
+import { FlaskConical, Wifi, WifiOff, RefreshCw, SlidersHorizontal, BarChart3, Users, DollarSign, Database } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -60,10 +60,10 @@ export default function AnalysisLab() {
   const [ghostW, setGhostW]         = useState(DEFAULT_GHOST_W);
   const [capW, setCapW]             = useState(DEFAULT_CAP_W);
   const [province, setProvince]     = useState('all');
-  const [zeroEmp, setZeroEmp]       = useState(false);
-  const [minRevenue, setMinRevenue] = useState(0);
-  const [minGhost, setMinGhost]     = useState(0);
+  const [minGovt, setMinGovt]       = useState(100);   // $K
+  const [fiscalYear, setFiscalYear] = useState(2023);
   const [sortBy, setSortBy]         = useState('ghost_desc');
+  const [dbStats, setDbStats]       = useState(null);
 
   const [results, setResults]       = useState([]);
   const [groupData, setGroupData]   = useState([]);
@@ -92,20 +92,25 @@ export default function AnalysisLab() {
 
   useEffect(() => { checkHealth(); }, []);
 
+  // Load DB summary stats when API comes online
+  useEffect(() => {
+    if (apiStatus !== 'ok') return;
+    fetch(`${apiUrl}/api/ghost_stats?fiscal_year=${fiscalYear}&min_govt=${minGovt * 1000}`)
+      .then(r => r.json()).then(setDbStats).catch(() => {});
+  }, [apiStatus, apiUrl, fiscalYear, minGovt]);
+
   const runScore = useCallback(async () => {
     if (apiStatus !== 'ok') return;
     setLoading(true);
     try {
       const body = {
         ghost_weights: ghostW,
-        capacity_weights: Object.fromEntries(Object.entries(capW).map(([k, v]) => [k, v / 100])),
+        fiscal_year: fiscalYear,
         province: province === 'all' ? null : province,
-        zero_employees: zeroEmp,
-        min_revenue: minRevenue * 1000,
-        min_ghost: minGhost,
+        min_govt: minGovt * 1000,
         limit: 200,
       };
-      const r = await fetch(`${apiUrl}/api/rescore`, {
+      const r = await fetch(`${apiUrl}/api/ghost_query`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -117,7 +122,7 @@ export default function AnalysisLab() {
     } finally {
       setLoading(false);
     }
-  }, [apiUrl, apiStatus, ghostW, capW, province, zeroEmp, minRevenue, minGhost]);
+  }, [apiUrl, apiStatus, ghostW, fiscalYear, province, minGovt]);
 
   const runGroups = useCallback(async () => {
     if (apiStatus !== 'ok') return;
@@ -131,11 +136,11 @@ export default function AnalysisLab() {
   useEffect(() => {
     if (tab === 'score') {
       clearTimeout(debounceRef.current);
-      debounceRef.current = setTimeout(runScore, 400);
+      debounceRef.current = setTimeout(runScore, 500);
     } else {
       runGroups();
     }
-  }, [ghostW, capW, province, zeroEmp, minRevenue, minGhost, sortBy, tab, runScore, runGroups]);
+  }, [ghostW, fiscalYear, province, minGovt, sortBy, tab, runScore, runGroups]);
 
   const highConcern  = results.filter(r => r.ghostScore >= 8).length;
   const totalAtRisk  = results.reduce((s, r) => s + (r.govtRevenue || 0), 0);
@@ -152,7 +157,10 @@ export default function AnalysisLab() {
             <FlaskConical className="w-5 h-5 text-primary" />
             Analysis Lab
           </h1>
-          <p className="text-sm text-muted-foreground">Live re-scoring with custom parameters — backed by local Python engine</p>
+          <p className="text-sm text-muted-foreground">
+            Live re-scoring against full CRA dataset
+            {dbStats && <span className="ml-1 text-primary font-medium">— {dbStats.total.toLocaleString()} orgs in scope</span>}
+          </p>
         </div>
 
         {/* API connection bar */}
@@ -263,6 +271,16 @@ export default function AnalysisLab() {
                 </CardHeader>
                 <CardContent className="px-4 pb-4 space-y-3">
                   <div className="space-y-1.5">
+                    <Label className="text-xs">Fiscal Year</Label>
+                    <Select value={String(fiscalYear)} onValueChange={v => setFiscalYear(Number(v))}>
+                      <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {[2024,2023,2022,2021,2020].map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-1.5">
                     <Label className="text-xs">Province</Label>
                     <Select value={province} onValueChange={setProvince}>
                       <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
@@ -274,32 +292,19 @@ export default function AnalysisLab() {
                   </div>
 
                   <div className="space-y-1.5">
-                    <Label className="text-xs">Min Ghost Score: <strong>{minGhost === 0 ? 'Any' : `≥ ${minGhost}/10`}</strong></Label>
-                    <Slider min={0} max={10} step={1} value={[minGhost]} onValueChange={([v]) => setMinGhost(v)} />
+                    <Label className="text-xs">Min Govt Funding: <strong>{minGovt === 0 ? 'Any' : `≥ $${minGovt}K`}</strong></Label>
+                    <Slider min={0} max={5000} step={50} value={[minGovt]} onValueChange={([v]) => setMinGovt(v)} />
                   </div>
 
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">Min Revenue: <strong>{minRevenue === 0 ? 'Any' : `≥ $${minRevenue}K`}</strong></Label>
-                    <Slider min={0} max={50000} step={500} value={[minRevenue]} onValueChange={([v]) => setMinRevenue(v)} />
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <Switch id="zeroEmp" checked={zeroEmp} onCheckedChange={setZeroEmp} />
-                    <label htmlFor="zeroEmp" className="text-xs cursor-pointer">Zero employees only</label>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">Sort by</Label>
-                    <Select value={sortBy} onValueChange={setSortBy}>
-                      <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="ghost_desc">Ghost Score ↓</SelectItem>
-                        <SelectItem value="ghost_asc">Ghost Score ↑</SelectItem>
-                        <SelectItem value="govt_desc">Govt Revenue ↓</SelectItem>
-                        <SelectItem value="name_asc">Name A→Z</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  {dbStats && (
+                    <div className="rounded-lg bg-muted p-2.5 space-y-1 text-xs">
+                      <div className="font-semibold text-muted-foreground uppercase tracking-wide text-[10px]">In Scope ({fiscalYear})</div>
+                      <div className="flex justify-between"><span>Total orgs</span><strong>{dbStats.total.toLocaleString()}</strong></div>
+                      <div className="flex justify-between"><span>Zero compensation</span><strong className="text-red-600">{dbStats.zero_comp.toLocaleString()}</strong></div>
+                      <div className="flex justify-between"><span>Govt dep ≥90%</span><strong className="text-orange-600">{dbStats.high_govt_dep.toLocaleString()}</strong></div>
+                      <div className="flex justify-between"><span>Low program spend</span><strong className="text-orange-600">{dbStats.low_programs.toLocaleString()}</strong></div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </div>
