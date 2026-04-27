@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { apiBase } from '@/api/httpClient';
+import { usePagedQuery } from '@/hooks/usePagedQuery';
 import PageHeader from '@/components/PageHeader';
+import PaginationBar from '@/components/PaginationBar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, ChevronRight, Repeat } from 'lucide-react';
@@ -26,9 +28,11 @@ export default function LoopsPage() {
   const [excludeGiantSCC, setExcludeGiantSCC] = useState(true);
   const [selectedBn, setSelectedBn] = useState(null);
 
-  const list = useQuery({
-    queryKey: ['loops', 'charities', excludeGiantSCC],
-    queryFn: () => fetchData(`/api/loops/charities?excludeGiantSCC=${excludeGiantSCC}&limit=200`),
+  const { rows: listRows, meta: listMeta, isLoading: listLoading, isFetching: listFetching, error: listError, setPage } = usePagedQuery({
+    key: ['loops', 'charities', excludeGiantSCC],
+    path: '/api/loops/charities',
+    params: { excludeGiantSCC },
+    defaultLimit: 100,
   });
 
   const detail = useQuery({
@@ -53,17 +57,17 @@ export default function LoopsPage() {
 
       <div className="grid lg:grid-cols-5 gap-5">
         {/* Left: ranked list */}
-        <div className="lg:col-span-2 bg-card border border-border rounded-xl overflow-hidden">
+        <div className="lg:col-span-2 bg-card border border-border rounded-xl overflow-hidden flex flex-col">
           <div className="px-4 py-3 border-b border-border flex items-center justify-between text-xs">
             <span className="font-semibold text-muted-foreground uppercase tracking-wider">Top loop participants</span>
-            {list.isLoading && <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground" />}
-            {list.data && <span className="text-muted-foreground">{list.data.length} rows</span>}
+            {(listLoading || listFetching) && <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground" />}
+            {listMeta && <span className="text-muted-foreground">{listMeta.total.toLocaleString()} total</span>}
           </div>
-          {list.error && (
-            <div className="p-4 text-sm text-red-600">Error: {String(list.error.message ?? list.error)}</div>
+          {listError && (
+            <div className="p-4 text-sm text-red-600">Error: {String(listError.message ?? listError)}</div>
           )}
-          <div className="divide-y divide-border max-h-[70vh] overflow-auto">
-            {(list.data ?? []).map((row) => (
+          <div className="divide-y divide-border max-h-[60vh] overflow-auto">
+            {listRows.map((row) => (
               <button
                 key={row.bn}
                 onClick={() => setSelectedBn(row.bn)}
@@ -86,6 +90,7 @@ export default function LoopsPage() {
               </button>
             ))}
           </div>
+          <PaginationBar meta={listMeta} loading={listFetching} onChange={setPage} pageSizes={[50, 100, 250]} />
         </div>
 
         {/* Right: detail */}

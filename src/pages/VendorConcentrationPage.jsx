@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { apiBase } from '@/api/httpClient';
+import { usePagedQuery } from '@/hooks/usePagedQuery';
 import PageHeader from '@/components/PageHeader';
 import DataTable from '@/components/DataTable';
+import PaginationBar from '@/components/PaginationBar';
 import { Button } from '@/components/ui/button';
 
 const fmt = (n) =>
@@ -10,19 +10,14 @@ const fmt = (n) =>
     ? '—'
     : new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD', maximumFractionDigits: 0 }).format(Number(n));
 
-async function fetchData(path) {
-  const r = await fetch(`${apiBase()}${path}`);
-  if (!r.ok) throw new Error(`${r.status}`);
-  const json = await r.json();
-  return json.data;
-}
-
 export default function VendorConcentrationPage() {
   const [dim, setDim] = useState('economic_object_code');
 
-  const q = useQuery({
-    queryKey: ['contracts', 'concentration', dim],
-    queryFn: () => fetchData(`/api/contracts/concentration?dim=${dim}&limit=80`),
+  const { rows, meta, isLoading, isFetching, error, setPage } = usePagedQuery({
+    key: ['contracts', 'concentration', dim],
+    path: '/api/contracts/concentration',
+    params: { dim },
+    defaultLimit: 100,
   });
 
   return (
@@ -31,7 +26,11 @@ export default function VendorConcentrationPage() {
         title="Vendor Concentration (HHI)"
         problemId="5"
         dataSources={['public.contracts']}
-        subtitle="Herfindahl–Hirschman Index per spend category. HHI > 2,500 typically indicates a category dominated by a single vendor — a regulatory concern threshold for competition policy."
+        subtitle={
+          meta
+            ? `${meta.total.toLocaleString()} categories with at least $1M total spend. HHI > 2,500 typically indicates a category dominated by a single vendor — a regulatory concern threshold for competition policy.`
+            : 'HHI per spend category. HHI > 2,500 typically indicates a category dominated by a single vendor.'
+        }
         rightSlot={
           <div className="flex gap-1">
             {[
@@ -39,47 +38,45 @@ export default function VendorConcentrationPage() {
               ['commodity_code', 'commodity'],
               ['owner_org_title', 'department'],
             ].map(([v, label]) => (
-              <Button
-                key={v}
-                variant={dim === v ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setDim(v)}
-              >
+              <Button key={v} variant={dim === v ? 'default' : 'outline'} size="sm" onClick={() => setDim(v)}>
                 by {label}
               </Button>
             ))}
           </div>
         }
       />
-      <DataTable
-        loading={q.isLoading}
-        error={q.error}
-        rows={q.data ?? []}
-        columns={[
-          { key: 'category', label: dim === 'owner_org_title' ? 'Department' : 'Category' },
-          { key: 'vendor_count', label: 'Vendors', align: 'right' },
-          {
-            key: 'hhi',
-            label: 'HHI',
-            align: 'right',
-            render: (r) => {
-              const v = Number(r.hhi);
-              const cls = v > 2500 ? 'text-red-600 font-bold' : v > 1500 ? 'text-yellow-600' : 'text-green-600';
-              return <span className={cls}>{v.toFixed(0)}</span>;
+      <div className="bg-card border border-border rounded-xl overflow-hidden">
+        <DataTable
+          loading={isLoading}
+          error={error}
+          rows={rows}
+          columns={[
+            { key: 'category', label: dim === 'owner_org_title' ? 'Department' : 'Category' },
+            { key: 'vendor_count', label: 'Vendors', align: 'right' },
+            {
+              key: 'hhi',
+              label: 'HHI',
+              align: 'right',
+              render: (r) => {
+                const v = Number(r.hhi);
+                const cls = v > 2500 ? 'text-red-600 font-bold' : v > 1500 ? 'text-yellow-600' : 'text-green-600';
+                return <span className={cls}>{v.toFixed(0)}</span>;
+              },
             },
-          },
-          { key: 'total', label: 'Total spend', align: 'right', render: (r) => fmt(r.total) },
-          {
-            key: 'top_share',
-            label: 'Top vendor share',
-            align: 'right',
-            render: (r) =>
-              r.total && r.top_vendor_value
-                ? `${((Number(r.top_vendor_value) / Number(r.total)) * 100).toFixed(1)}%`
-                : '—',
-          },
-        ]}
-      />
+            { key: 'total', label: 'Total spend', align: 'right', render: (r) => fmt(r.total) },
+            {
+              key: 'top_share',
+              label: 'Top vendor share',
+              align: 'right',
+              render: (r) =>
+                r.total && r.top_vendor_value
+                  ? `${((Number(r.top_vendor_value) / Number(r.total)) * 100).toFixed(1)}%`
+                  : '—',
+            },
+          ]}
+        />
+        <PaginationBar meta={meta} loading={isFetching} onChange={setPage} />
+      </div>
     </div>
   );
 }

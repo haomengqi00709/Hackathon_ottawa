@@ -1,77 +1,100 @@
-import React, { useState, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Link, useNavigate } from 'react-router-dom';
-import { Building2, Plus, Search, SlidersHorizontal, X, ArrowUpDown } from 'lucide-react';
+import { Building2, Plus, Search, SlidersHorizontal, X, ArrowUpDown, Loader2 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import RiskBadge from '@/components/shared/RiskBadge';
 import RiskNatureBadge from '@/components/shared/RiskNatureBadge';
+import PaginationBar from '@/components/PaginationBar';
 
-const SORT_OPTIONS = [
-  { value: 'ghost_desc',    label: 'Ghost Score ↓' },
-  { value: 'ghost_asc',     label: 'Ghost Score ↑' },
-  { value: 'score_asc',     label: 'Capacity Score ↑' },
-  { value: 'score_desc',    label: 'Capacity Score ↓' },
-  { value: 'name_asc',      label: 'Name A→Z' },
-];
+// Server-side: name search (q), province (jurisdiction). Backend paginates the
+// full 851K-entity universe.
+//
+// Page-local: risk / ghost / zero-employees filters. They depend on assessment
+// data the server doesn't filter by (yet). The "results on this page" badge
+// makes the scope explicit so users don't think the page-local filters are
+// hiding rows from elsewhere.
+const PROVINCES_FALLBACK = ['AB','BC','MB','NB','NL','NS','NT','NU','ON','PE','QC','SK','YT'];
 
 export default function OrganizationsList() {
-  const [search, setSearch]               = useState('');
-  const [riskFilter, setRiskFilter]       = useState('all');
+  // Server-controlled state
+  const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [provinceFilter, setProvinceFilter] = useState('all');
+  const [offset, setOffset] = useState(0);
+  const [limit, setLimit] = useState(100);
+
+  // Page-local filters
+  const [riskFilter, setRiskFilter] = useState('all');
   const [riskNatureFilter, setRiskNatureFilter] = useState('all');
-  const [ghostMin, setGhostMin]           = useState(0);
+  const [ghostMin, setGhostMin] = useState(0);
   const [zeroEmployeesOnly, setZeroEmployeesOnly] = useState(false);
-  const [sortBy, setSortBy]               = useState('ghost_desc');
-  const [showFilters, setShowFilters]     = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
+
   const navigate = useNavigate();
 
-  const { data: orgs = [], isLoading } = useQuery({
-    queryKey: ['orgs'],
-    queryFn: () => base44.entities.Organizations.list(),
+  // Debounce search input — fires the server query 350 ms after typing stops.
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 350);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  // Reset to first page when filters change.
+  useEffect(() => { setOffset(0); }, [debouncedSearch, provinceFilter, limit]);
+
+  const { data: pageData, isLoading, isFetching, error } = useQuery({
+    queryKey: ['orgs', 'page', { q: debouncedSearch, jurisdiction: provinceFilter, offset, limit }],
+    queryFn: () => base44.entities.Organizations.listPage({
+      offset,
+      limit,
+      ...(debouncedSearch ? { q: debouncedSearch } : {}),
+      ...(provinceFilter !== 'all' ? { jurisdiction: provinceFilter } : {}),
+    }),
+    placeholderData: keepPreviousData,
   });
+
+  const orgs = pageData?.data ?? [];
+  const meta = pageData?.meta;
+
+  // Pull all assessments — usually a small sqlite table. If it ever grows we
+  // can switch to listAll().
   const { data: assessments = [] } = useQuery({
-    queryKey: ['assessments'],
+    queryKey: ['assessments-all'],
     queryFn: () => base44.entities.CapacityAssessments.list(),
   });
 
   const latestAssessments = useMemo(() => {
     const map = {};
     assessments.forEach(a => {
-      if (!map[a.organizationId] || new Date(a.assessmentDate) > new Date(map[a.organizationId].assessmentDate)) {
+      if (!map[a.organizationId] || new Date(a.assessmentDate ?? 0) > new Date(map[a.organizationId].assessmentDate ?? 0)) {
         map[a.organizationId] = a;
       }
     });
     return map;
   }, [assessments]);
 
-  const provinces = useMemo(() => {
-    const set = new Set(orgs.map(o => o.jurisdiction).filter(Boolean));
-    return Array.from(set).sort();
-  }, [orgs]);
+  const provinces = PROVINCES_FALLBACK;
 
   const activeFiltersCount = [
     riskFilter !== 'all',
-    provinceFilter !== 'all',
     riskNatureFilter !== 'all',
     ghostMin > 0,
     zeroEmployeesOnly,
   ].filter(Boolean).length;
 
+  // Page-local refinement: filters that depend on assessments run on the
+  // current page only. The total/page-count comes from the server.
   const filtered = useMemo(() => {
-    let rows = orgs.filter(o => {
-      if (search && !o.organizationName?.toLowerCase().includes(search.toLowerCase())) return false;
-      if (provinceFilter !== 'all' && o.jurisdiction !== provinceFilter) return false;
+    const rows = orgs.filter(o => {
       if (zeroEmployeesOnly && (o.employeeCount ?? 1) !== 0) return false;
-
       const a = latestAssessments[o.id];
       if (riskFilter !== 'all') {
         if (!a) return riskFilter === 'unassessed';
@@ -85,24 +108,11 @@ export default function OrganizationsList() {
       }
       return true;
     });
-
-    rows.sort((a, b) => {
-      const aa = latestAssessments[a.id];
-      const ba = latestAssessments[b.id];
-      if (sortBy === 'ghost_desc') return (ba?.ghostScore ?? 0) - (aa?.ghostScore ?? 0);
-      if (sortBy === 'ghost_asc')  return (aa?.ghostScore ?? 0) - (ba?.ghostScore ?? 0);
-      if (sortBy === 'score_asc')  return (aa?.overallCapacityScore ?? 0) - (ba?.overallCapacityScore ?? 0);
-      if (sortBy === 'score_desc') return (ba?.overallCapacityScore ?? 0) - (aa?.overallCapacityScore ?? 0);
-      if (sortBy === 'name_asc')   return a.organizationName?.localeCompare(b.organizationName);
-      return 0;
-    });
-
     return rows;
-  }, [orgs, latestAssessments, search, provinceFilter, riskFilter, riskNatureFilter, ghostMin, zeroEmployeesOnly, sortBy]);
+  }, [orgs, latestAssessments, riskFilter, riskNatureFilter, ghostMin, zeroEmployeesOnly]);
 
   const clearFilters = () => {
     setRiskFilter('all');
-    setProvinceFilter('all');
     setRiskNatureFilter('all');
     setGhostMin(0);
     setZeroEmployeesOnly(false);
@@ -114,7 +124,11 @@ export default function OrganizationsList() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Organizations</h1>
           <p className="text-sm text-muted-foreground">
-            {isLoading ? 'Loading…' : `${filtered.length} of ${orgs.length} organizations`}
+            {isLoading
+              ? 'Loading…'
+              : meta
+                ? `Showing ${filtered.length.toLocaleString()} on this page · ${meta.total.toLocaleString()} total entities`
+                : '—'}
           </p>
         </div>
         <Link to="/organizations/new">
@@ -129,20 +143,23 @@ export default function OrganizationsList() {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
-                placeholder="Search by name…"
+                placeholder="Search by name (server-side; case-insensitive)…"
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 className="pl-9"
               />
+              {isFetching && (
+                <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 animate-spin text-muted-foreground" />
+              )}
             </div>
 
-            <Select value={sortBy} onValueChange={setSortBy}>
+            <Select value={provinceFilter} onValueChange={setProvinceFilter}>
               <SelectTrigger className="w-44">
-                <ArrowUpDown className="w-3.5 h-3.5 mr-1.5 text-muted-foreground" />
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {SORT_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                <SelectItem value="all">All Provinces</SelectItem>
+                {provinces.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
               </SelectContent>
             </Select>
 
@@ -152,7 +169,7 @@ export default function OrganizationsList() {
               onClick={() => setShowFilters(v => !v)}
             >
               <SlidersHorizontal className="w-4 h-4" />
-              Filters
+              Page filters
               {activeFiltersCount > 0 && (
                 <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-destructive text-destructive-foreground text-[10px] flex items-center justify-center font-bold">
                   {activeFiltersCount}
@@ -161,25 +178,16 @@ export default function OrganizationsList() {
             </Button>
           </div>
 
-          {/* Expanded filter panel */}
+          {/* Page-local filter panel */}
           {showFilters && (
             <div className="rounded-lg border bg-muted/30 p-4 space-y-4">
+              <p className="text-[11px] text-muted-foreground italic">
+                These filters apply to the current page only — they refine the
+                rows the server has already returned. To filter across all
+                851K entities, use the search/jurisdiction controls above
+                (those are server-side).
+              </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                {/* Province */}
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Province</Label>
-                  <Select value={provinceFilter} onValueChange={setProvinceFilter}>
-                    <SelectTrigger className="h-9 text-sm">
-                      <SelectValue placeholder="All Provinces" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Provinces</SelectItem>
-                      {provinces.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Risk Level */}
                 <div className="space-y-1.5">
                   <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Risk Level</Label>
                   <Select value={riskFilter} onValueChange={setRiskFilter}>
@@ -193,8 +201,6 @@ export default function OrganizationsList() {
                     </SelectContent>
                   </Select>
                 </div>
-
-                {/* Risk Nature */}
                 <div className="space-y-1.5">
                   <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Risk Nature</Label>
                   <Select value={riskNatureFilter} onValueChange={setRiskNatureFilter}>
@@ -208,51 +214,24 @@ export default function OrganizationsList() {
                     </SelectContent>
                   </Select>
                 </div>
-
-                {/* Zero employees toggle */}
                 <div className="space-y-1.5">
                   <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Staff Filter</Label>
                   <div className="flex items-center gap-2 h-9">
-                    <Switch
-                      id="zero-emp"
-                      checked={zeroEmployeesOnly}
-                      onCheckedChange={setZeroEmployeesOnly}
-                    />
-                    <label htmlFor="zero-emp" className="text-sm cursor-pointer">
-                      Zero employees only
-                    </label>
+                    <Switch id="zero-emp" checked={zeroEmployeesOnly} onCheckedChange={setZeroEmployeesOnly} />
+                    <label htmlFor="zero-emp" className="text-sm cursor-pointer">Zero employees only</label>
                   </div>
                 </div>
-              </div>
-
-              {/* Ghost Score slider */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
+                <div className="space-y-1.5">
                   <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    Minimum Ghost Score
+                    Min Ghost Score: <strong>{ghostMin === 0 ? 'Any' : `≥ ${ghostMin}/10`}</strong>
                   </Label>
-                  <span className="text-sm font-bold tabular-nums">
-                    {ghostMin === 0 ? 'Any' : `≥ ${ghostMin}/10`}
-                  </span>
-                </div>
-                <Slider
-                  min={0} max={10} step={1}
-                  value={[ghostMin]}
-                  onValueChange={([v]) => setGhostMin(v)}
-                  className="w-full"
-                />
-                <div className="flex justify-between text-[10px] text-muted-foreground">
-                  <span>0 — Any</span>
-                  <span>5 — Borderline</span>
-                  <span>8 — Severe</span>
-                  <span>10 — Confirmed</span>
+                  <Slider min={0} max={10} step={1} value={[ghostMin]} onValueChange={([v]) => setGhostMin(v)} />
                 </div>
               </div>
-
               {activeFiltersCount > 0 && (
                 <div className="flex justify-end">
                   <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground" onClick={clearFilters}>
-                    <X className="w-3.5 h-3.5" /> Clear all filters
+                    <X className="w-3.5 h-3.5" /> Clear page filters
                   </Button>
                 </div>
               )}
@@ -274,6 +253,13 @@ export default function OrganizationsList() {
                 </TableRow>
               </TableHeader>
               <TableBody>
+                {error && (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center py-8 text-red-600">
+                      {String(error.message ?? error)}
+                    </TableCell>
+                  </TableRow>
+                )}
                 {filtered.map(org => {
                   const assessment = latestAssessments[org.id];
                   const ghost = assessment?.ghostScore ?? null;
@@ -296,9 +282,11 @@ export default function OrganizationsList() {
                       </TableCell>
                       <TableCell className="text-sm">{org.jurisdiction ?? '—'}</TableCell>
                       <TableCell className="text-sm">
-                        {org.employeeCount === 0
-                          ? <span className="text-red-600 font-semibold">0</span>
-                          : (org.employeeCount ?? '—')}
+                        {org.employeeCount == null
+                          ? <span className="text-muted-foreground">—</span>
+                          : Number(org.employeeCount) === 0
+                            ? <span className="text-red-600 font-semibold">0</span>
+                            : Number(org.employeeCount).toLocaleString()}
                       </TableCell>
                       <TableCell>
                         {ghost !== null ? (
@@ -325,16 +313,23 @@ export default function OrganizationsList() {
                     </TableRow>
                   );
                 })}
-                {filtered.length === 0 && !isLoading && (
+                {!error && filtered.length === 0 && !isLoading && (
                   <TableRow>
                     <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                      No organizations match the current filters
+                      {orgs.length === 0
+                        ? 'No organizations match the search'
+                        : 'No rows on this page match the page filters — clear filters or page through more results'}
                     </TableCell>
                   </TableRow>
                 )}
               </TableBody>
             </Table>
           </div>
+          <PaginationBar
+            meta={meta}
+            loading={isFetching}
+            onChange={({ offset: o, limit: l }) => { setOffset(o); setLimit(l); }}
+          />
         </CardContent>
       </Card>
     </div>

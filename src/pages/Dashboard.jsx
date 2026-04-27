@@ -1,6 +1,7 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
+import { fetchOrgsStats } from '@/api/httpClient';
 import { Link } from 'react-router-dom';
 import {
   Building2, AlertTriangle, CheckCircle2, ClipboardCheck,
@@ -102,7 +103,11 @@ const insightStyle = {
 };
 
 export default function Dashboard() {
-  const { data: orgs = [] } = useQuery({ queryKey: ['orgs'], queryFn: () => base44.entities.Organizations.list() });
+  // Aggregate stats across the whole 851K-entity universe — no list pulled.
+  const { data: stats } = useQuery({ queryKey: ['orgs', 'stats'], queryFn: fetchOrgsStats });
+  // Recent orgs sample (default first page, 200 rows) — purely for surfacing
+  // canonical names alongside assessment IDs in the "Top Flagged" panel.
+  const { data: orgs = [] } = useQuery({ queryKey: ['orgs', 'sample'], queryFn: () => base44.entities.Organizations.list() });
   const { data: assessments = [] } = useQuery({ queryKey: ['assessments'], queryFn: () => base44.entities.CapacityAssessments.list() });
 
   const latestMap = {};
@@ -150,7 +155,7 @@ export default function Dashboard() {
             <p className="text-sm text-muted-foreground mt-0.5">Structured monitoring of recipient organizational capacity relative to funding commitments and stated deliverables</p>
           </div>
           <p className="text-xs text-muted-foreground sm:text-right flex-shrink-0">
-            {latest.length} of {orgs.length} organizations assessed
+            {latest.length.toLocaleString()} assessed{stats ? ` · ${stats.totalEntities.toLocaleString()} entities indexed` : ''}
           </p>
         </div>
         {/* Anchor question */}

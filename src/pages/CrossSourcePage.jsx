@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { apiBase } from '@/api/httpClient';
+import { usePagedQuery } from '@/hooks/usePagedQuery';
 import PageHeader from '@/components/PageHeader';
+import PaginationBar from '@/components/PaginationBar';
 import { Loader2, ChevronRight, Layers } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
@@ -24,9 +26,11 @@ async function fetchData(path) {
 export default function CrossSourcePage() {
   const [selectedId, setSelectedId] = useState(null);
 
-  const list = useQuery({
-    queryKey: ['cross-source', 'list'],
-    queryFn: () => fetchData('/api/cross-source?minSources=2&limit=200'),
+  const { rows: listRows, meta: listMeta, isLoading: listLoading, isFetching: listFetching, error: listError, setPage } = usePagedQuery({
+    key: ['cross-source', 'list'],
+    path: '/api/cross-source',
+    params: { minSources: 2 },
+    defaultLimit: 100,
   });
 
   const detail = useQuery({
@@ -45,17 +49,17 @@ export default function CrossSourcePage() {
       />
 
       <div className="grid lg:grid-cols-5 gap-5">
-        <div className="lg:col-span-2 bg-card border border-border rounded-xl overflow-hidden">
+        <div className="lg:col-span-2 bg-card border border-border rounded-xl overflow-hidden flex flex-col">
           <div className="px-4 py-3 border-b border-border flex items-center justify-between text-xs">
             <span className="font-semibold text-muted-foreground uppercase tracking-wider">
               Multi-source recipients
             </span>
-            {list.isLoading && <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground" />}
-            {list.data && <span className="text-muted-foreground">{list.data.length} rows</span>}
+            {(listLoading || listFetching) && <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground" />}
+            {listMeta && <span className="text-muted-foreground">{listMeta.total.toLocaleString()} total</span>}
           </div>
-          {list.error && <div className="p-4 text-sm text-red-600">Error: {String(list.error.message)}</div>}
-          <div className="divide-y divide-border max-h-[70vh] overflow-auto">
-            {(list.data ?? []).map((row) => (
+          {listError && <div className="p-4 text-sm text-red-600">Error: {String(listError.message)}</div>}
+          <div className="divide-y divide-border max-h-[60vh] overflow-auto">
+            {listRows.map((row) => (
               <button
                 key={row.entity_id}
                 onClick={() => setSelectedId(row.entity_id)}
@@ -79,6 +83,7 @@ export default function CrossSourcePage() {
               </button>
             ))}
           </div>
+          <PaginationBar meta={listMeta} loading={listFetching} onChange={setPage} pageSizes={[50, 100, 250]} />
         </div>
 
         <div className="lg:col-span-3 bg-card border border-border rounded-xl">
