@@ -20,6 +20,14 @@ import DataExplorer from '@/pages/DataExplorer';
 import MismatchEngine from '@/pages/MismatchEngine';
 import CredibilityEngine from '@/pages/CredibilityEngine';
 import DecisionEngine from '@/pages/DecisionEngine';
+import LoopsPage from '@/pages/LoopsPage';
+import CrossSourcePage from '@/pages/CrossSourcePage';
+import AmendmentCreepPage from '@/pages/AmendmentCreepPage';
+import VendorConcentrationPage from '@/pages/VendorConcentrationPage';
+import NetworksPage from '@/pages/NetworksPage';
+import PolicyAlignmentPage from '@/pages/PolicyAlignmentPage';
+import ContractIntelligencePage from '@/pages/ContractIntelligencePage';
+import AdverseMediaPage from '@/pages/AdverseMediaPage';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -56,6 +64,14 @@ const AuthenticatedApp = () => {
         <Route path="/mismatch" element={<MismatchEngine />} />
         <Route path="/credibility" element={<CredibilityEngine />} />
         <Route path="/decisions" element={<DecisionEngine />} />
+        <Route path="/loops" element={<LoopsPage />} />
+        <Route path="/cross-source" element={<CrossSourcePage />} />
+        <Route path="/amendments" element={<AmendmentCreepPage />} />
+        <Route path="/vendor-concentration" element={<VendorConcentrationPage />} />
+        <Route path="/networks" element={<NetworksPage />} />
+        <Route path="/policy-alignment" element={<PolicyAlignmentPage />} />
+        <Route path="/contract-intelligence" element={<ContractIntelligencePage />} />
+        <Route path="/adverse-media" element={<AdverseMediaPage />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>
