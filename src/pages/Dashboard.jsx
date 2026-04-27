@@ -1,11 +1,11 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
-import { fetchOrgsStats } from '@/api/httpClient';
+import { fetchOrgsStats, reqEnvelope } from '@/api/httpClient';
 import { Link } from 'react-router-dom';
 import {
   Building2, AlertTriangle, CheckCircle2, ClipboardCheck,
-  ArrowRight, TrendingDown, Lightbulb, ChevronRight
+  ArrowRight, TrendingDown, Lightbulb, ChevronRight, Database, Loader2
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -25,7 +25,7 @@ function StatPill({ title, value, sub, color }) {
   );
 }
 
-function deriveInsights({ orgs, latest, highCount, modCount, reviewQueue, avgScore, orgMap }) {
+function deriveInsights({ orgs, latest, highCount, modCount, reviewQueue, avgScore, orgMap, stats }) {
   const insights = [];
 
   // Insight 1: High-risk count and what it means
@@ -70,14 +70,19 @@ function deriveInsights({ orgs, latest, highCount, modCount, reviewQueue, avgSco
     });
   }
 
-  // Insight 3: Portfolio average and coverage
+  // Insight 3: Portfolio average and coverage. Coverage now compared against
+  // the real warehouse total (stats.totalEntities), not the page sample.
   const assessed = latest.length;
-  const unassessed = orgs.length - assessed;
-  if (unassessed > 0) {
+  const universeSize = stats?.totalEntities;
+  if (universeSize && assessed < universeSize) {
+    const unassessed = universeSize - assessed;
     insights.push({
       severity: 'moderate',
       label: 'Assessment Coverage Incomplete',
-      text: `${unassessed} of ${orgs.length} registered organizations have not yet been assessed. Gaps in coverage limit the reliability of portfolio-level reporting.`
+      text:
+        `${assessed.toLocaleString()} of ${universeSize.toLocaleString()} indexed entities have a recorded ` +
+        `capacity assessment. Use the warehouse-driven Funding-Integrity probes ` +
+        `(Loops, Cross-Source, Amendments, etc.) for cross-portfolio analysis without per-entity assessments.`,
     });
   } else if (avgScore > 0) {
     insights.push({
@@ -101,6 +106,102 @@ const insightStyle = {
   moderate: { bar: 'bg-yellow-400', icon: TrendingDown,   iconClass: 'text-yellow-600', bg: 'bg-yellow-50 border-yellow-200' },
   low:      { bar: 'bg-green-500',  icon: CheckCircle2,   iconClass: 'text-green-600',  bg: 'bg-green-50 border-green-200' },
 };
+
+const fmtCAD = (n) =>
+  n == null
+    ? '—'
+    : new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD', maximumFractionDigits: 0 }).format(Number(n));
+
+// Pulls top-15 ghost-scored charities directly from the warehouse via
+// /api/named/ghost_top. Independent of the reviewer-driven assessments table —
+// always shows real data even when zero assessments have been run.
+function WarehouseHotList() {
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['dashboard', 'warehouse-hot-list'],
+    queryFn: () => reqEnvelope('/api/named/ghost_top?limit=15'),
+    staleTime: 5 * 60 * 1000,
+  });
+  const rows = data?.data?.rows ?? data?.rows ?? [];
+
+  return (
+    <Card>
+      <CardHeader className="pb-2 flex flex-row items-center justify-between">
+        <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+          <Database className="w-4 h-4 text-primary" />
+          Warehouse Top Ghost-Scored Charities
+          <span className="text-[10px] text-muted-foreground italic font-normal">— live from the data, not from reviewer assessments</span>
+        </CardTitle>
+        <Link to="/loops">
+          <Button variant="ghost" size="sm" className="text-xs gap-1 h-7">
+            See loops <ArrowRight className="w-3 h-3" />
+          </Button>
+        </Link>
+      </CardHeader>
+      <CardContent className="p-0">
+        {isLoading && (
+          <div className="px-4 py-6 text-xs text-muted-foreground flex items-center gap-2">
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            Loading from cra.govt_funding_by_charity ⨝ cra.cra_compensation…
+          </div>
+        )}
+        {error && (
+          <div className="px-4 py-6 text-xs text-red-600">
+            Failed to load: {String(error.message ?? error)}
+          </div>
+        )}
+        {!isLoading && !error && rows.length === 0 && (
+          <p className="px-4 py-6 text-xs text-muted-foreground italic">No data returned.</p>
+        )}
+        {!isLoading && !error && rows.length > 0 && (
+          <div className="divide-y divide-border">
+            {rows.map((r, i) => {
+              const score = Number(r.ghost_score);
+              const scoreColor = score >= 8 ? 'text-red-600' : score >= 5 ? 'text-orange-500' : 'text-muted-foreground';
+              const Wrap = r.entity_id ? Link : 'div';
+              const wrapProps = r.entity_id
+                ? { to: `/organizations/${r.entity_id}` }
+                : {};
+              return (
+                <Wrap
+                  {...wrapProps}
+                  key={r.bn || i}
+                  className="flex items-center gap-4 px-6 py-3 hover:bg-muted/40 transition-colors group"
+                >
+                  <span className="text-xs text-muted-foreground w-4 font-mono">{i + 1}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-sm truncate group-hover:text-primary transition-colors">
+                      {r.legal_name}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      BN {r.bn} · {r.province ?? '—'} · {Number(r.employees) === 0 ? '0 employees ⚠' : `${Number(r.employees).toLocaleString()} employees`} · {fmtCAD(r.govt_revenue)} govt revenue
+                    </p>
+                  </div>
+                  <div className="hidden md:flex items-center gap-2 flex-shrink-0">
+                    <span className="text-[10px] text-muted-foreground">prog</span>
+                    <span className={`text-xs tabular-nums ${Number(r.programs_pct) < 10 ? 'text-red-600 font-semibold' : ''}`}>
+                      {r.programs_pct != null ? `${Number(r.programs_pct).toFixed(0)}%` : '—'}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground ml-2">govt</span>
+                    <span className={`text-xs tabular-nums ${Number(r.govt_share_of_rev) >= 90 ? 'text-red-600 font-semibold' : ''}`}>
+                      {r.govt_share_of_rev != null ? `${Math.round(Number(r.govt_share_of_rev))}%` : '—'}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3 flex-shrink-0">
+                    <span className={`text-xl font-bold tabular-nums ${scoreColor}`}>{score}</span>
+                    <span className="text-[10px] text-muted-foreground">/10</span>
+                    {r.entity_id && (
+                      <ChevronRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                    )}
+                  </div>
+                </Wrap>
+              );
+            })}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function Dashboard() {
   // Aggregate stats across the whole 851K-entity universe — no list pulled.
@@ -140,7 +241,7 @@ export default function Dashboard() {
     .sort((a, b) => a.overallCapacityScore - b.overallCapacityScore)
     .slice(0, 6);
 
-  const insights = deriveInsights({ orgs, latest, highCount, modCount, reviewQueue, avgScore, orgMap });
+  const insights = deriveInsights({ orgs, latest, highCount, modCount, reviewQueue, avgScore, orgMap, stats });
 
   const sortedForBar = [...latest].sort((a, b) => a.overallCapacityScore - b.overallCapacityScore);
 
@@ -200,9 +301,35 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Stats Row */}
+      {/* Stats Row — top row is warehouse-wide truth (851K entities), second row is reviewer activity */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <StatPill
+          title="Total Entities"
+          value={stats ? stats.totalEntities.toLocaleString() : '…'}
+          sub={stats ? `${stats.withBnRoot.toLocaleString()} with BN root` : 'across cra + fed + ab + user-added'}
+          color="text-foreground"
+        />
+        <StatPill
+          title="CRA-Linked"
+          value={stats ? stats.craLinked.toLocaleString() : '…'}
+          sub={stats ? `${stats.charityTyped.toLocaleString()} typed as charity/foundation` : 'linked to a T3010 filing'}
+          color="text-blue-600"
+        />
+        <StatPill
+          title="Multi-Source Recipients"
+          value={stats ? stats.multiSource.toLocaleString() : '…'}
+          sub="present in ≥ 2 datasets"
+          color="text-purple-600"
+        />
+        <StatPill
+          title="AB Provincial Linked"
+          value={stats ? stats.abLinked.toLocaleString() : '…'}
+          sub={stats ? `${stats.fedLinked.toLocaleString()} federal-linked` : ''}
+          color="text-orange-600"
+        />
+      </div>
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-        <StatPill title="Organizations" value={orgs.length} />
+        <StatPill title="Assessments Run" value={latest.length.toLocaleString()} sub="reviewer-driven" />
         <StatPill title="Avg. Score" value={avgScore > 0 ? avgScore : '–'} sub="out of 100"
           color={avgScore >= 68 ? 'text-green-600' : avgScore >= 40 ? 'text-yellow-600' : 'text-red-600'} />
         <StatPill title="Low Concern"  value={lowCount}  sub="Score ≥ 68" color="text-green-600" />
@@ -341,6 +468,10 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Warehouse Hot List — always shows real data, even with zero
+          reviewer-driven assessments */}
+      <WarehouseHotList />
 
       {/* Top Flagged Organizations */}
       {topFlagged.length > 0 && (
