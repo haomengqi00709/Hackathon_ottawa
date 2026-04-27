@@ -19,9 +19,12 @@ const SIDEBAR = [
     icon: ShieldAlert,
     color: 'text-red-500',
     queries: [
-      { id: 'ghost_top',        label: 'Top Ghost Orgs',         sub: '16k+ orgs, 2023',       mode: 'named' },
-      { id: 'impossibilities',  label: 'Impossible Filings',     sub: '54,010 records',         mode: 'named' },
-      { id: 'plausibility_flags', label: 'Plausibility Flags',   sub: '1,075 records',          mode: 'named' },
+      { id: 'ghost_top',         label: 'Top Ghost Orgs',          sub: '16k+ orgs, 2023',         mode: 'named' },
+      { id: 'zero_emp_spending',  label: 'Zero Staff + Active Spend', sub: 'No employees, $50k+ spend', mode: 'named' },
+      { id: 'ghost_by_province',  label: 'Ghost Risk by Province',  sub: 'Province-level summary',  mode: 'named' },
+      { id: 'sector_breakdown',   label: 'Ghost Risk by Sector',    sub: 'Category breakdown',      mode: 'named' },
+      { id: 'impossibilities',    label: 'Impossible Filings',      sub: '54,010 records',          mode: 'named' },
+      { id: 'plausibility_flags', label: 'Plausibility Flags',      sub: '1,075 records',           mode: 'named' },
     ],
   },
   {
