@@ -9,6 +9,7 @@ import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { ChevronRight, Database, X, AlertTriangle, ShieldX, HelpCircle, Loader2 } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
+import { RISK_NATURE_CONFIG } from '@/lib/scoringEngine';
 
 const GHOST_FLAG_LABEL = {
   NO_PAID_EMPLOYEES: 'reports zero paid employees on T3010',
@@ -84,7 +85,10 @@ function buildTalkingPoints(a) {
     if (typeof a.revenueDiversityScore === 'number')
       points.push(`Revenue diversity: ${a.revenueDiversityScore}/100`);
   }
-  if (a.recommendedFundingPath) points.push(`Path: ${a.recommendedFundingPath}`);
+  // Auto-v1 batch rows don't persist recommendedFundingPath — derive it from
+  // riskNature via RISK_NATURE_CONFIG (same mapping the FE engine uses).
+  const path = a.recommendedFundingPath || RISK_NATURE_CONFIG[a.riskNature]?.recommendedPath;
+  if (path) points.push(`Path: ${path}`);
   return points.slice(0, 3);
 }
 
