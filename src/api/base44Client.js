@@ -48,10 +48,28 @@ async function fetchCRA(path) {
 export const craApi = {
   entities: {
     Organizations: {
-      list: () => fetchCRA('/api/engine/organizations?limit=500').then(d => d.organizations || []),
+      list: () => fetchCRA('/api/engine/organizations?limit=500').then(d =>
+        (d.organizations || []).map(org => ({
+          ...org,
+          // buildMismatchInput reads these as strings, not booleans
+          website: org.websitePresent ? 'https://exists' : '',
+          missionDescription: org.programDescriptionPresent ? 'Program description present.' : '',
+          jurisdiction: org.province,
+        }))
+      ),
     },
     FinancialIndicators: {
-      list: () => fetchCRA('/api/engine/financials?limit=500').then(d => d.financials || []),
+      list: () => fetchCRA('/api/engine/financials?limit=500').then(d =>
+        // Sort descending so financials[0] in buildMismatchInput is the latest year
+        (d.financials || []).sort((a, b) => (b.fiscalYear || 0) - (a.fiscalYear || 0)).map(f => ({
+          ...f,
+          totalRevenue: Number(f.totalRevenue) || 0,
+          totalExpenses: Number(f.totalExpenses) || 0,
+          programExpense: Number(f.programExpense) || 0,
+          compensationExpense: Number(f.compensationExpense) || 0,
+          governmentRevenue: Number(f.governmentRevenue) || 0,
+        }))
+      ),
     },
     FundingRecords: {
       list: () => Promise.resolve([]),
