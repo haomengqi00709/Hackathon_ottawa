@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { AlertTriangle, CheckCircle2, AlertCircle, ChevronDown, ChevronUp, ClipboardCheck, ShieldAlert, HelpCircle, Zap } from 'lucide-react';
-import { getRiskColor, SCORE_WEIGHTS, getScoreColor } from '@/lib/scoringEngine';
+import { getRiskColor, SCORE_WEIGHTS, getScoreColor, calculateCapacityScores } from '@/lib/scoringEngine';
 import { runMismatchEngine, buildMismatchInput, getMismatchStyle } from '@/lib/mismatchEngine';
 import { runCredibilityEngine, buildCredibilityInput, getPatternStyle } from '@/lib/credibilityEngine';
 import { runDecisionEngine, getDecisionStyle } from '@/lib/decisionEngine';
 import { Button } from '@/components/ui/button';
+import WhyThisCase from './WhyThisCase';
 
 // ─── SCORE BAR ────────────────────────────────────────────────────────────────
 function ScoreBar({ scoreKey, value }) {
@@ -90,12 +91,38 @@ export default function ReportCard({ assessment, org, funding, financials, fundi
   const riskColors = getRiskColor(assessment?.riskLevel || 'low');
   const overallScore = assessment?.overallCapacityScore ?? null;
 
+  // Persisted factors (set when a reviewer ran the FE engine via "Run
+  // Assessment"). Auto-v1 batch rows DON'T persist these — they only carry
+  // numeric scores. So when the persisted blob is empty AND we have enough
+  // inputs to recompute, run the engine live and use its factors + whyThisCase
+  // for the per-org reasoning panels. Numeric scores still come from the
+  // persisted record (we don't overwrite them).
   let factors = [];
   if (assessment?.explanationFactors) {
-    try { factors = JSON.parse(assessment.explanationFactors); } catch {}
+    try {
+      factors = typeof assessment.explanationFactors === 'string'
+        ? JSON.parse(assessment.explanationFactors)
+        : (assessment.explanationFactors ?? []);
+    } catch {}
+  }
+  let liveWhyThisCase = null;
+  if (factors.length === 0 && org && (funding?.length || financials?.length)) {
+    try {
+      const live = calculateCapacityScores(org, funding ?? [], financials ?? [], [], null, {
+        totalFundingOverride: fundingTotalAmount,
+      });
+      factors = live.factors ?? [];
+      liveWhyThisCase = live.whyThisCase ?? null;
+    } catch { /* fall through with empty factors */ }
   }
   const highFactors = factors.filter(f => f.severity === 'high');
   const otherFactors = factors.filter(f => f.severity !== 'high');
+
+  // Build a synthesized assessment object for WhyThisCase so it can render
+  // even when the persisted row carries no whyThisCase blob.
+  const assessmentForWhy = (assessment && (assessment.whyThisCase || liveWhyThisCase))
+    ? { ...assessment, whyThisCase: assessment.whyThisCase ?? liveWhyThisCase }
+    : assessment;
   const needsReview = assessment?.humanReviewRequired &&
     (assessment?.reviewerStatus === 'needs_review' || assessment?.reviewerStatus === 'pending');
 
@@ -196,6 +223,9 @@ export default function ReportCard({ assessment, org, funding, financials, fundi
           <p className="text-sm leading-relaxed text-muted-foreground">{assessment.aiSummary}</p>
         </Section>
       )}
+
+      {/* ── WHY THIS CASE LANDED HERE ── */}
+      <WhyThisCase assessment={assessmentForWhy} />
 
       {/* ── INDICATOR FINDINGS (collapsible) ── */}
       {factors.length > 0 && (

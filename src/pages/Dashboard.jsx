@@ -220,19 +220,21 @@ export default function Dashboard() {
   const { data: orgs = [] } = useQuery({ queryKey: ['orgs', 'sample'], queryFn: () => base44.entities.Organizations.list() });
   const { data: assessments = [] } = useQuery({ queryKey: ['assessments'], queryFn: () => base44.entities.CapacityAssessments.list() });
 
-  // Server-side query for the actual high-risk Top Flagged list. Without this
-  // the panel was filtering the first 100 paged assessments — almost none of
-  // which are high-risk if the precomputed pool is millions of rows where
-  // only a few thousand fall in the high band.
+  // Per-band server samples for both the Top Flagged list and the Score
+  // Spread bar chart. Fetched unconditionally so the chart always shows the
+  // shape of the distribution across the 851K precomputed pool, not a single
+  // tier of newest-inserted rows.
   const { data: highRiskPage } = useQuery({
-    queryKey: ['assessments', 'top-flagged'],
+    queryKey: ['assessments', 'sample', 'high'],
     queryFn: () => base44.entities.CapacityAssessments.filter({ riskLevel: 'high', limit: 10 }),
   });
   const { data: modRiskPage } = useQuery({
-    queryKey: ['assessments', 'top-mod'],
+    queryKey: ['assessments', 'sample', 'moderate'],
     queryFn: () => base44.entities.CapacityAssessments.filter({ riskLevel: 'moderate', limit: 10 }),
-    // Only fall back to moderate if we have no high-risk rows.
-    enabled: Array.isArray(highRiskPage) && highRiskPage.length === 0,
+  });
+  const { data: lowRiskPage } = useQuery({
+    queryKey: ['assessments', 'sample', 'low'],
+    queryFn: () => base44.entities.CapacityAssessments.filter({ riskLevel: 'low', limit: 10 }),
   });
 
   const latestMap = {};
@@ -281,7 +283,19 @@ export default function Dashboard() {
 
   const insights = deriveInsights({ orgs, latest, highCount, modCount, reviewQueue, avgScore, orgMap, stats });
 
-  const sortedForBar = [...latest].sort((a, b) => a.overallCapacityScore - b.overallCapacityScore);
+  // Stratified sample for the Score Spread bar chart: combine high + moderate
+  // + low pages so the chart actually shows the distribution shape across the
+  // 851K precomputed pool, not a single tier of newest-inserted rows. Tooltip
+  // reads entityCanonicalName from the assessment row directly (same fix as
+  // Top Flagged) so bars display real names instead of "Unknown".
+  const stratifiedForBar = [
+    ...(Array.isArray(highRiskPage) ? highRiskPage : []),
+    ...(Array.isArray(modRiskPage) ? modRiskPage : []),
+    ...(Array.isArray(lowRiskPage) ? lowRiskPage : []),
+  ];
+  const sortedForBar = (stratifiedForBar.length > 0 ? stratifiedForBar : latest)
+    .filter((a) => typeof a.overallCapacityScore === 'number')
+    .sort((a, b) => a.overallCapacityScore - b.overallCapacityScore);
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
@@ -479,10 +493,13 @@ export default function Dashboard() {
                     content={({ active, payload }) => {
                       if (!active || !payload?.length) return null;
                       const a = payload[0].payload;
-                      const org = orgMap[a.organizationId];
+                      const displayName =
+                        a.entityCanonicalName ||
+                        orgMap[a.organizationId]?.organizationName ||
+                        `entity_id ${a.organizationId}`;
                       return (
                         <div className="bg-card border rounded-lg shadow-lg p-2 text-xs max-w-[160px]">
-                          <p className="font-semibold leading-snug">{org?.organizationName || 'Unknown'}</p>
+                          <p className="font-semibold leading-snug">{displayName}</p>
                           <p className="text-muted-foreground">Score: <strong>{a.overallCapacityScore}</strong></p>
                         </div>
                       );
