@@ -29,16 +29,22 @@ function StatPill({ title, value, sub, color }) {
   );
 }
 
-function deriveInsights({ orgs, latest, highCount, modCount, reviewQueue, avgScore, orgMap, stats }) {
+function deriveInsights({ orgs, latest, highCount, modCount, reviewQueue, avgScore, orgMap, stats, highRiskSample, assessmentTotal }) {
   const insights = [];
 
   // Insight 1: High-risk count and what it means
   if (highCount > 0) {
-    const names = latest
-      .filter(a => a.riskLevel === 'high')
-      .sort((a, b) => a.overallCapacityScore - b.overallCapacityScore)
+    // Pull from the server-side high-risk sample first (those rows came back
+    // sorted by score asc and carry entityCanonicalName denormalized). Fall
+    // back to the page sample only if the server query hasn't returned.
+    const sourceForNames = (Array.isArray(highRiskSample) && highRiskSample.length)
+      ? highRiskSample
+      : latest.filter(a => a.riskLevel === 'high');
+    const names = sourceForNames
+      .slice()
+      .sort((a, b) => (a.overallCapacityScore ?? 100) - (b.overallCapacityScore ?? 100))
       .slice(0, 2)
-      .map(a => orgMap[a.organizationId]?.organizationName || 'Unknown')
+      .map(a => a.entityCanonicalName || orgMap[a.organizationId]?.organizationName || `entity_id ${a.organizationId}`)
       .join(' and ');
     insights.push({
       severity: 'high',
@@ -74,12 +80,13 @@ function deriveInsights({ orgs, latest, highCount, modCount, reviewQueue, avgSco
     });
   }
 
-  // Insight 3: Portfolio average and coverage. Coverage now compared against
-  // the real warehouse total (stats.totalEntities), not the page sample.
-  const assessed = latest.length;
+  // Insight 3: Portfolio average and coverage. Coverage compared against the
+  // real warehouse total (stats.totalEntities). After the auto-v1 batch run,
+  // assessmentTotal will exceed stats.totalEntities by the small reviewer slice
+  // — that's a "complete" state, no incomplete-coverage insight needed.
+  const assessed = assessmentTotal ?? latest.length;
   const universeSize = stats?.totalEntities;
   if (universeSize && assessed < universeSize) {
-    const unassessed = universeSize - assessed;
     insights.push({
       severity: 'moderate',
       label: 'Assessment Coverage Incomplete',
@@ -281,7 +288,18 @@ export default function Dashboard() {
     .sort((a, b) => (a.overallCapacityScore ?? 100) - (b.overallCapacityScore ?? 100))
     .slice(0, 6);
 
-  const insights = deriveInsights({ orgs, latest, highCount, modCount, reviewQueue, avgScore, orgMap, stats });
+  const insights = deriveInsights({
+    orgs,
+    latest,
+    highCount,
+    modCount,
+    reviewQueue,
+    avgScore,
+    orgMap,
+    stats,
+    highRiskSample: highRiskPage,
+    assessmentTotal: assessmentStats?.total,
+  });
 
   // Stratified sample for the Score Spread bar chart: combine high + moderate
   // + low pages so the chart actually shows the distribution shape across the
