@@ -2,6 +2,10 @@ import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { fetchOrgsStats, reqEnvelope } from '@/api/httpClient';
+async function fetchAssessmentStats() {
+  const { data } = await reqEnvelope('/api/assessments/stats');
+  return data;
+}
 import { Link } from 'react-router-dom';
 import {
   Building2, AlertTriangle, CheckCircle2, ClipboardCheck,
@@ -206,6 +210,10 @@ function WarehouseHotList() {
 export default function Dashboard() {
   // Aggregate stats across the whole 851K-entity universe — no list pulled.
   const { data: stats } = useQuery({ queryKey: ['orgs', 'stats'], queryFn: fetchOrgsStats });
+  const { data: assessmentStats } = useQuery({
+    queryKey: ['assessments', 'stats'],
+    queryFn: fetchAssessmentStats,
+  });
   // Recent orgs sample (default first page, 200 rows) — purely for surfacing
   // canonical names alongside assessment IDs in the "Top Flagged" panel.
   const { data: orgs = [] } = useQuery({ queryKey: ['orgs', 'sample'], queryFn: () => base44.entities.Organizations.list() });
@@ -222,9 +230,18 @@ export default function Dashboard() {
   const orgMap = {};
   orgs.forEach(o => { orgMap[o.id] = o; });
 
-  const highCount = latest.filter(a => a.riskLevel === 'high').length;
-  const modCount  = latest.filter(a => a.riskLevel === 'moderate').length;
-  const lowCount  = latest.filter(a => a.riskLevel === 'low').length;
+  // Prefer aggregated stats from the warehouse-precomputed assessment pool
+  // (auto-v1) when available — that's authoritative across all 851K entities.
+  // Fall back to the visible page of reviewer assessments when the batch
+  // hasn't been run yet.
+  const aggLow      = assessmentStats?.byRiskLevel?.low      ?? null;
+  const aggModerate = assessmentStats?.byRiskLevel?.moderate ?? null;
+  const aggHigh     = assessmentStats?.byRiskLevel?.high     ?? null;
+  const usingAggregate = assessmentStats != null && assessmentStats.total > 0;
+
+  const highCount = aggHigh ?? latest.filter(a => a.riskLevel === 'high').length;
+  const modCount  = aggModerate ?? latest.filter(a => a.riskLevel === 'moderate').length;
+  const lowCount  = aggLow ?? latest.filter(a => a.riskLevel === 'low').length;
   const reviewQueue = latest.filter(a => a.reviewerStatus === 'pending' || a.reviewerStatus === 'needs_review').length;
   const avgScore = latest.length > 0
     ? Math.round(latest.reduce((s, a) => s + (a.overallCapacityScore || 0), 0) / latest.length)
