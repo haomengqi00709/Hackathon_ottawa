@@ -155,25 +155,44 @@ export function calculateCapacityScores(org, funding, financials, benchmarks, be
     : funding.reduce((sum, f) => sum + (f.fundingAmount || 0), 0);
   const fin = financials[0] || {};
 
-  const employees = org.employeeCount || 0;
-  const volunteers = org.volunteerCount || 0;
+  // CRITICAL: distinguish null (data unknown — entity has no T3010 filing)
+  // from a real reported 0. Coercing to 0 with `|| 0` produces false-positive
+  // "Zero employees reported" messages on for-profit corps and AB-only orgs
+  // that are not required to file the T3010 form where field_370 lives.
+  const employeesKnown  = typeof org.employeeCount  === 'number';
+  const volunteersKnown = typeof org.volunteerCount === 'number';
+  const employees  = employeesKnown  ? org.employeeCount  : 0;  // for math; but `employeesKnown` gates the verdict
+  const volunteers = volunteersKnown ? org.volunteerCount : 0;
   const totalStaff = employees + volunteers;
 
   // ─── 1. STAFFING ADEQUACY (20%) ──────────────────────────────────────────
   let staffingScore = 75;
 
-  if (totalFunding === 0) {
+  if (!employeesKnown) {
+    // Headcount is genuinely unknown — for-profit company, AB-only entity with
+    // no T3010 filing, etc. Score neutral and surface the gap, do NOT assert "zero".
+    staffingScore = 60;
+    factors.push({
+      area: 'Staffing Adequacy',
+      severity: 'moderate',
+      detail:
+        'Headcount unknown — this entity has no CRA T3010 filing in the dataset (for-profit ' +
+        'corporations and AB-only non-profits often fall here). The 0/10 ghost-score ' +
+        'staffing flags do NOT apply because we have no source to assert "zero employees" against. ' +
+        'Reviewer should request employer-payroll evidence directly before a determination.',
+    });
+  } else if (totalFunding === 0) {
     staffingScore = 75;
   } else if (employees === 0) {
     if (totalFunding > 500000) {
       staffingScore = 10;
-      factors.push({ area: 'Staffing Adequacy', severity: 'high', detail: `Zero employees reported while receiving $${totalFunding.toLocaleString()} in public funding. No observable workforce to deliver this level of programming.` });
+      factors.push({ area: 'Staffing Adequacy', severity: 'high', detail: `Zero employees reported on T3010 while receiving $${totalFunding.toLocaleString()} in public funding. No observable workforce to deliver this level of programming.` });
     } else if (totalFunding > 150000) {
       staffingScore = 35;
-      factors.push({ area: 'Staffing Adequacy', severity: 'high', detail: `No employees reported with $${totalFunding.toLocaleString()} in funding. Even volunteer-only operations at this scale are unusual.` });
+      factors.push({ area: 'Staffing Adequacy', severity: 'high', detail: `No employees on T3010 with $${totalFunding.toLocaleString()} in funding. Even volunteer-only operations at this scale are unusual.` });
     } else {
       staffingScore = 60;
-      factors.push({ area: 'Staffing Adequacy', severity: 'moderate', detail: `No employees reported, but funding is modest ($${totalFunding.toLocaleString()}). Review whether volunteers can reasonably cover delivery.` });
+      factors.push({ area: 'Staffing Adequacy', severity: 'moderate', detail: `No employees on T3010, but funding is modest ($${totalFunding.toLocaleString()}). Review whether volunteers can reasonably cover delivery.` });
     }
   } else {
     const fundingPerEmployee = totalFunding / employees;
@@ -199,9 +218,16 @@ export function calculateCapacityScores(org, funding, financials, benchmarks, be
   const participantMatch = allDeliverables.match(/(\d[\d,]*)\s*(participant|youth|client|student|household|family|resident)/i);
   const claimedParticipants = participantMatch ? parseInt(participantMatch[1].replace(/,/g, '')) : 0;
 
-  if (employees === 0 && totalFunding > 150000 && hasLargeDeliverables) {
+  if (!employeesKnown) {
+    deliveryPlausibilityScore = 60;
+    factors.push({
+      area: 'Delivery Plausibility',
+      severity: 'moderate',
+      detail: 'Cannot assess delivery plausibility — workforce data not in the warehouse for this entity (no T3010 filing). Request operational evidence before determination.',
+    });
+  } else if (employees === 0 && totalFunding > 150000 && hasLargeDeliverables) {
     deliveryPlausibilityScore = 10;
-    factors.push({ area: 'Delivery Plausibility', severity: 'high', detail: `Extensive delivery commitments with zero employees and $${totalFunding.toLocaleString()} in funding. There is no visible workforce to execute these deliverables.` });
+    factors.push({ area: 'Delivery Plausibility', severity: 'high', detail: `Extensive delivery commitments with zero employees on T3010 and $${totalFunding.toLocaleString()} in funding. There is no visible workforce to execute these deliverables.` });
   } else if (claimedParticipants > 0 && employees > 0) {
     const participantsPerEmployee = claimedParticipants / employees;
     if (participantsPerEmployee > 500) {

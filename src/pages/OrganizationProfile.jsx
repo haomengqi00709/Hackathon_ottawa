@@ -187,6 +187,24 @@ Reflect the Risk Nature Classification in your summary. Write in neutral, eviden
           </>
         )}
 
+        {/* Data-gap banner for entities with no CRA T3010 filing */}
+        {(() => {
+          const hasCra = Array.isArray(org.datasetSources) && org.datasetSources.includes('cra');
+          const headcountMissing = org.employeeCount == null;
+          if (!hasCra && headcountMissing) {
+            return (
+              <div className="rounded-md bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-900">
+                <strong>No CRA T3010 filing</strong> for this entity (it appears in {(org.datasetSources || []).join(' / ') || 'no'} dataset(s)
+                {org.organizationType ? `, typed as ${org.organizationType}` : ''}). The warehouse therefore has no
+                headcount, compensation, or volunteer figures — capacity-score branches that depend on those
+                fields are set to "unknown" rather than treated as zero. Reviewer should request employer payroll
+                evidence directly before any determination.
+              </div>
+            );
+          }
+          return null;
+        })()}
+
         {/* Data availability chips */}
         <div className="flex flex-wrap gap-1.5 pt-1 border-t border-border">
           <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${fundingTotalCount > 0 ? 'bg-green-50 border-green-200 text-green-700' : 'bg-muted border-border text-muted-foreground'}`}

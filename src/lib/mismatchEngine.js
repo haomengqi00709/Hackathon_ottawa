@@ -64,16 +64,20 @@ export function runMismatchEngine(input) {
     number_of_directors = 0,
     program_description_present = false,
     website_present = false,
+    staff_known = true,   // if false, Rule 1 cannot fire — we don't know zero
   } = input;
 
   // ─── STEP 1: DERIVED FIELDS ───────────────────────────────────────────────
-  const total_staff = (full_time_staff || 0) + (part_time_staff || 0);
+  // Headcount may genuinely be unknown for non-charity entities (no T3010
+  // filing). Coercing null/undefined to 0 then asserting "zero staff" is a
+  // false positive — only fire Rule 1 when we actually have a source.
+  const total_staff = staff_known ? (full_time_staff || 0) + (part_time_staff || 0) : null;
 
   // ─── STEP 2: RULE EVALUATION ──────────────────────────────────────────────
   const triggeredRules = [];
 
-  // Rule 1: Compensation without staff
-  if (total_compensation > 10000 && total_staff === 0) {
+  // Rule 1: Compensation without staff. Requires both signals to be known and zero.
+  if (staff_known && total_compensation > 10000 && total_staff === 0) {
     triggeredRules.push('compensation_without_staff');
   }
 
@@ -161,10 +165,15 @@ export function buildMismatchInput(org, financials = [], funding = []) {
 
   const website_present = !!(org.website && org.website.trim().length > 3);
 
+  // Distinguish "no T3010 source" (null) from a real reported 0.
+  const employeesKnown  = typeof org.employeeCount  === 'number';
+  const volunteersKnown = typeof org.volunteerCount === 'number';
+
   return {
     organization_name: org.organizationName || '',
-    full_time_staff: org.employeeCount || 0,
-    part_time_staff: org.volunteerCount || 0,
+    full_time_staff:  employeesKnown  ? org.employeeCount  : 0,
+    part_time_staff:  volunteersKnown ? org.volunteerCount : 0,
+    staff_known:      employeesKnown,        // gate Rule 1 on real data presence
     total_compensation,
     program_spend_percentage,
     total_revenue,
