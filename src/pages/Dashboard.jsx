@@ -413,16 +413,31 @@ export default function Dashboard() {
         />
       </div>
 
-      {/* Risk Nature Breakdown */}
-      {latest.filter(a => a.riskNature).length > 0 && (() => {
+      {/* Risk Nature Breakdown — prefer the warehouse-wide byRiskNature
+          aggregate (across all 851K precomputed rows). Fall back to the page
+          sample only when stats haven't loaded or the batch hasn't run. */}
+      {(() => {
         const natures = ['Ready', 'Emerging but Underdeveloped', 'Overstretched / Request Exceeds Capacity', 'High Concern / Enhanced Due Diligence Required'];
+        const aggregate = assessmentStats?.byRiskNature;
+        const useAggregate = aggregate && Object.values(aggregate).some(v => v > 0);
         const counts = {};
-        natures.forEach(n => { counts[n] = latest.filter(a => a.riskNature === n).length; });
+        natures.forEach(n => {
+          counts[n] = useAggregate
+            ? (aggregate[n] ?? 0)
+            : latest.filter(a => a.riskNature === n).length;
+        });
+        const anyCount = natures.some(n => counts[n] > 0);
+        if (!anyCount) return null;
         return (
           <div>
             <div className="flex items-center gap-2 mb-3">
               <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Risk Nature Breakdown</h2>
-              <span className="text-xs text-muted-foreground">— What kind of risk is this?</span>
+              <span className="text-xs text-muted-foreground">
+                — What kind of risk is this?
+                {useAggregate && (
+                  <span className="ml-1 italic">across all {assessmentStats.total.toLocaleString()} stored assessments</span>
+                )}
+              </span>
             </div>
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
               {natures.map(n => {
@@ -432,7 +447,7 @@ export default function Dashboard() {
                   <div key={n} className={`rounded-xl border p-4 ${cfg.bg} ${cfg.border}`}>
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-lg">{cfg.emoji}</span>
-                      <span className={`text-2xl font-bold ${cfg.color}`}>{count}</span>
+                      <span className={`text-2xl font-bold ${cfg.color}`}>{count.toLocaleString()}</span>
                     </div>
                     <p className={`text-xs font-semibold leading-snug ${cfg.color}`}>{n}</p>
                   </div>
