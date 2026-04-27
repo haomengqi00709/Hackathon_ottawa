@@ -215,9 +215,25 @@ export default function Dashboard() {
     queryFn: fetchAssessmentStats,
   });
   // Recent orgs sample (default first page, 200 rows) — purely for surfacing
-  // canonical names alongside assessment IDs in the "Top Flagged" panel.
+  // org-type/jurisdiction in the "Top Flagged" panel. Names come from
+  // assessment.entityCanonicalName which is denormalized on every row.
   const { data: orgs = [] } = useQuery({ queryKey: ['orgs', 'sample'], queryFn: () => base44.entities.Organizations.list() });
   const { data: assessments = [] } = useQuery({ queryKey: ['assessments'], queryFn: () => base44.entities.CapacityAssessments.list() });
+
+  // Server-side query for the actual high-risk Top Flagged list. Without this
+  // the panel was filtering the first 100 paged assessments — almost none of
+  // which are high-risk if the precomputed pool is millions of rows where
+  // only a few thousand fall in the high band.
+  const { data: highRiskPage } = useQuery({
+    queryKey: ['assessments', 'top-flagged'],
+    queryFn: () => base44.entities.CapacityAssessments.filter({ riskLevel: 'high', limit: 10 }),
+  });
+  const { data: modRiskPage } = useQuery({
+    queryKey: ['assessments', 'top-mod'],
+    queryFn: () => base44.entities.CapacityAssessments.filter({ riskLevel: 'moderate', limit: 10 }),
+    // Only fall back to moderate if we have no high-risk rows.
+    enabled: Array.isArray(highRiskPage) && highRiskPage.length === 0,
+  });
 
   const latestMap = {};
   assessments.forEach(a => {
@@ -253,9 +269,14 @@ export default function Dashboard() {
     { name: 'High Concern',  value: highCount, color: '#ef4444' },
   ].filter(d => d.value > 0);
 
-  const topFlagged = latest
+  // Prefer real high-risk rows from server. If there are none, fall back to
+  // moderate. Only as a last resort fall back to the in-page assessments.
+  const serverFlagged = (Array.isArray(highRiskPage) && highRiskPage.length)
+    ? highRiskPage
+    : (Array.isArray(modRiskPage) && modRiskPage.length ? modRiskPage : null);
+  const topFlagged = (serverFlagged ?? latest)
     .filter(a => a.riskLevel === 'high' || a.riskLevel === 'moderate')
-    .sort((a, b) => a.overallCapacityScore - b.overallCapacityScore)
+    .sort((a, b) => (a.overallCapacityScore ?? 100) - (b.overallCapacityScore ?? 100))
     .slice(0, 6);
 
   const insights = deriveInsights({ orgs, latest, highCount, modCount, reviewQueue, avgScore, orgMap, stats });
@@ -273,7 +294,10 @@ export default function Dashboard() {
             <p className="text-sm text-muted-foreground mt-0.5">Structured monitoring of recipient organizational capacity relative to funding commitments and stated deliverables</p>
           </div>
           <p className="text-xs text-muted-foreground sm:text-right flex-shrink-0">
-            {latest.length.toLocaleString()} assessed{stats ? ` · ${stats.totalEntities.toLocaleString()} entities indexed` : ''}
+            {assessmentStats
+              ? `${assessmentStats.total.toLocaleString()} assessments stored`
+              : `${latest.length.toLocaleString()} on this page`}
+            {stats ? ` · ${stats.totalEntities.toLocaleString()} entities indexed` : ''}
           </p>
         </div>
         {/* Anchor question */}
@@ -346,12 +370,33 @@ export default function Dashboard() {
         />
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-        <StatPill title="Assessments Run" value={latest.length.toLocaleString()} sub="reviewer-driven" />
+        <StatPill
+          title="Assessments Stored"
+          value={assessmentStats ? assessmentStats.total.toLocaleString() : latest.length.toLocaleString()}
+          sub={assessmentStats?.byVersion?.['auto-v1']
+            ? `${assessmentStats.byVersion['auto-v1'].toLocaleString()} batch · ${(assessmentStats.total - assessmentStats.byVersion['auto-v1']).toLocaleString()} reviewer`
+            : 'reviewer-driven'}
+        />
         <StatPill title="Avg. Score" value={avgScore > 0 ? avgScore : '–'} sub="out of 100"
           color={avgScore >= 68 ? 'text-green-600' : avgScore >= 40 ? 'text-yellow-600' : 'text-red-600'} />
-        <StatPill title="Low Concern"  value={lowCount}  sub="Score ≥ 68" color="text-green-600" />
-        <StatPill title="Moderate"     value={modCount}  sub="Score 40–67" color="text-yellow-600" />
-        <StatPill title="High Concern" value={highCount} sub="Score < 40"  color="text-red-600" />
+        <StatPill
+          title="Low Concern"
+          value={typeof lowCount === 'number' ? lowCount.toLocaleString() : lowCount}
+          sub={usingAggregate ? 'across all stored assessments' : 'on this page'}
+          color="text-green-600"
+        />
+        <StatPill
+          title="Moderate"
+          value={typeof modCount === 'number' ? modCount.toLocaleString() : modCount}
+          sub={usingAggregate ? 'across all stored assessments' : 'on this page'}
+          color="text-yellow-600"
+        />
+        <StatPill
+          title="High Concern"
+          value={typeof highCount === 'number' ? highCount.toLocaleString() : highCount}
+          sub={usingAggregate ? 'across all stored assessments' : 'on this page'}
+          color="text-red-600"
+        />
       </div>
 
       {/* Risk Nature Breakdown */}
@@ -507,6 +552,15 @@ export default function Dashboard() {
             <div className="divide-y divide-border">
               {topFlagged.map((a, idx) => {
                 const org = orgMap[a.organizationId];
+                // Each assessment row carries entity_canonical_name denormalized,
+                // so we don't need to find the org in orgMap (which only has the
+                // top-200 by source_count and almost never overlaps with the
+                // high-risk precomputed rows).
+                const displayName =
+                  a.entityCanonicalName || org?.organizationName || `entity_id ${a.organizationId}`;
+                const subline = org?.organizationType
+                  ? `${org.organizationType} · ${org.jurisdiction ?? '—'}`
+                  : (a.bnRoot ? `BN ${a.bnRoot}` : 'No CRA filing');
                 const score = a.overallCapacityScore;
                 const scoreColor =
                   score >= 68 ? 'text-green-600' :
@@ -520,10 +574,10 @@ export default function Dashboard() {
                     <span className="text-xs text-muted-foreground w-4 font-mono">{idx + 1}</span>
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold text-sm truncate group-hover:text-primary transition-colors">
-                        {org?.organizationName || 'Unknown'}
+                        {displayName}
                       </p>
                       <p className="text-xs text-muted-foreground capitalize">
-                        {org?.organizationType} · {org?.jurisdiction}
+                        {subline}
                       </p>
                     </div>
                     {a.aiSummary && (
