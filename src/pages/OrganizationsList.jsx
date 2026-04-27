@@ -24,11 +24,24 @@ import PaginationBar from '@/components/PaginationBar';
 // hiding rows from elsewhere.
 const PROVINCES_FALLBACK = ['AB','BC','MB','NB','NL','NS','NT','NU','ON','PE','QC','SK','YT'];
 
+// Sort modes the orgs endpoint supports. `default` ranks by source_count desc
+// (warehouse-side); the score / ghost sorts page through sqlite-precomputed
+// assessments to drive ordering across the full 851K pool. score / ghost
+// sorts don't combine with q / jurisdiction filters server-side — the FE
+// disables those controls when score-sort is active.
+const SORT_OPTIONS = [
+  { value: 'default',     label: 'Default (most-linked first)' },
+  { value: 'score_asc',   label: 'Score (lowest first)' },
+  { value: 'score_desc',  label: 'Score (highest first)' },
+  { value: 'ghost_desc',  label: 'Ghost flags (most first)' },
+];
+
 export default function OrganizationsList() {
   // Server-controlled state
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [provinceFilter, setProvinceFilter] = useState('all');
+  const [sortMode, setSortMode] = useState('default');
   const [offset, setOffset] = useState(0);
   const [limit, setLimit] = useState(100);
 
@@ -40,6 +53,7 @@ export default function OrganizationsList() {
   const [showFilters, setShowFilters] = useState(false);
 
   const navigate = useNavigate();
+  const isScoreSort = sortMode !== 'default';
 
   // Debounce search input — fires the server query 350 ms after typing stops.
   useEffect(() => {
@@ -48,15 +62,18 @@ export default function OrganizationsList() {
   }, [search]);
 
   // Reset to first page when filters change.
-  useEffect(() => { setOffset(0); }, [debouncedSearch, provinceFilter, limit]);
+  useEffect(() => { setOffset(0); }, [debouncedSearch, provinceFilter, limit, sortMode]);
 
   const { data: pageData, isLoading, isFetching, error } = useQuery({
-    queryKey: ['orgs', 'page', { q: debouncedSearch, jurisdiction: provinceFilter, offset, limit }],
+    queryKey: ['orgs', 'page', { q: debouncedSearch, jurisdiction: provinceFilter, sort: sortMode, offset, limit }],
     queryFn: () => base44.entities.Organizations.listPage({
       offset,
       limit,
-      ...(debouncedSearch ? { q: debouncedSearch } : {}),
-      ...(provinceFilter !== 'all' ? { jurisdiction: provinceFilter } : {}),
+      sort: sortMode,
+      // Score sort is purely sqlite-driven; sending q/jurisdiction would be
+      // ignored upstream so we omit them to keep the query key clean.
+      ...(!isScoreSort && debouncedSearch ? { q: debouncedSearch } : {}),
+      ...(!isScoreSort && provinceFilter !== 'all' ? { jurisdiction: provinceFilter } : {}),
     }),
     placeholderData: keepPreviousData,
   });
@@ -133,9 +150,14 @@ export default function OrganizationsList() {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
-                placeholder="Search by name (server-side; case-insensitive)…"
+                placeholder={
+                  isScoreSort
+                    ? 'Name search disabled while sorting by score'
+                    : 'Search by name (server-side; case-insensitive)…'
+                }
                 value={search}
                 onChange={e => setSearch(e.target.value)}
+                disabled={isScoreSort}
                 className="pl-9"
               />
               {isFetching && (
@@ -143,13 +165,23 @@ export default function OrganizationsList() {
               )}
             </div>
 
-            <Select value={provinceFilter} onValueChange={setProvinceFilter}>
+            <Select value={provinceFilter} onValueChange={setProvinceFilter} disabled={isScoreSort}>
               <SelectTrigger className="w-44">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Provinces</SelectItem>
                 {provinces.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+              </SelectContent>
+            </Select>
+
+            <Select value={sortMode} onValueChange={setSortMode}>
+              <SelectTrigger className="w-56" title="Score / ghost sorts page through the precomputed pool — they don't combine with name or jurisdiction filters.">
+                <ArrowUpDown className="w-3.5 h-3.5 mr-1 text-muted-foreground" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {SORT_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
               </SelectContent>
             </Select>
 
@@ -167,6 +199,12 @@ export default function OrganizationsList() {
               )}
             </Button>
           </div>
+
+          {isScoreSort && (
+            <p className="text-[11px] text-muted-foreground italic px-1">
+              Sorting by score across all 851K precomputed assessments. Name and province filters are disabled in this mode — switch back to <em>Default</em> to use them.
+            </p>
+          )}
 
           {/* Page-local filter panel */}
           {showFilters && (
