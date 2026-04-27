@@ -17,10 +17,25 @@ export default defineConfig(({ mode }) => {
   const strictPort =
     (process.env.FRONTEND_STRICT_PORT ?? env.FRONTEND_STRICT_PORT) === 'true';
 
+  // Vite's allowedHosts is a DNS-rebinding defense — by default it rejects any
+  // Host header outside localhost/127.0.0.1. When the dev or preview server
+  // sits behind a reverse proxy (Cloudflare, nginx, traefik) the proxy forwards
+  // the public hostname and Vite would 400 the request. Comma-separated list,
+  // or the literal "all" / "true" to disable the check entirely.
+  // Example: FRONTEND_ALLOWED_HOSTS=funding.hackathon.orbiseed.com,.orbiseed.com
+  const rawAllowed = process.env.FRONTEND_ALLOWED_HOSTS ?? env.FRONTEND_ALLOWED_HOSTS ?? '';
+  const allowedHosts =
+    rawAllowed.trim().toLowerCase() === 'all' || rawAllowed.trim().toLowerCase() === 'true'
+      ? true
+      : rawAllowed
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean);
+
   return {
     logLevel: 'error',
-    server: { port, host, strictPort },
-    preview: { port, host, strictPort },
+    server: { port, host, strictPort, allowedHosts },
+    preview: { port, host, strictPort, allowedHosts },
     plugins: [
       base44({
         // Support for legacy code that imports the base44 SDK with @/integrations, @/entities, etc.
