@@ -229,6 +229,7 @@ Reflect the Risk Nature Classification in your summary. Write in neutral, eviden
             org={org}
             funding={funding}
             financials={financials}
+            fundingTotalAmount={fundingTotalAmount}
             onRecordDecision={() => setShowReviewDialog(true)}
           />
         </div>

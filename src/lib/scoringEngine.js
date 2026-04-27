@@ -413,13 +413,16 @@ export function calculateCapacityScores(org, funding, financials, benchmarks, be
   if (fin.latestFilingStatus === 'missing') verifiabilityGap += 20;
   verifiabilityGap = Math.min(100, verifiabilityGap);
 
-  // Internal consistency gap (25%) — contradictions between claims and evidence
+  // Internal consistency gap (25%) — contradictions between claims and evidence.
+  // Headcount-related contradictions only fire when we ACTUALLY have a headcount
+  // source. Otherwise the same null-as-zero false positive that broke staffing
+  // and delivery would re-emerge here.
   let consistencyGap = 0;
-  if (employees === 0 && totalFunding > 300000) consistencyGap += 50;
-  else if (employees === 0 && totalFunding > 100000) consistencyGap += 30;
-  if (claimedParticipants > 0 && employees > 0 && (claimedParticipants / employees) > 500) consistencyGap += 40;
-  else if (claimedParticipants > 0 && employees > 0 && (claimedParticipants / employees) > 200) consistencyGap += 20;
-  if (hasLargeDeliverables && totalStaff < 3) consistencyGap += 25;
+  if (employeesKnown && employees === 0 && totalFunding > 300000) consistencyGap += 50;
+  else if (employeesKnown && employees === 0 && totalFunding > 100000) consistencyGap += 30;
+  if (employeesKnown && claimedParticipants > 0 && employees > 0 && (claimedParticipants / employees) > 500) consistencyGap += 40;
+  else if (employeesKnown && claimedParticipants > 0 && employees > 0 && (claimedParticipants / employees) > 200) consistencyGap += 20;
+  if (employeesKnown && hasLargeDeliverables && totalStaff < 3) consistencyGap += 25;
   consistencyGap = Math.min(100, consistencyGap);
 
   // Structural extraction risk (20%) — compensation dominance, pass-through, low program spend

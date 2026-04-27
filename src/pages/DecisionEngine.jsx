@@ -58,8 +58,11 @@ export default function DecisionEngine() {
       const financials = allFinancials.filter(f => f.organizationId === org.id);
       const latestAssessment = latestAssessmentMap[org.id];
 
-      // Run mismatch engine
-      const mismatchInput = buildMismatchInput(org, funding, financials);
+      // Run mismatch engine. Signature is (org, financials, funding) — order
+      // matters. The arguments were previously swapped here, which silently
+      // fed the funding-records array as if it were T3010 financials and
+      // vice versa, producing meaningless mismatch verdicts on this page.
+      const mismatchInput = buildMismatchInput(org, financials, funding);
       const mismatch = runMismatchEngine(mismatchInput);
 
       // Run credibility (pattern) engine

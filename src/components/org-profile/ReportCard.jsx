@@ -56,12 +56,17 @@ function Section({ title, badge, badgeStyle, children }) {
 }
 
 // ─── MAIN REPORT CARD ─────────────────────────────────────────────────────────
-export default function ReportCard({ assessment, org, funding, financials, onRecordDecision }) {
+export default function ReportCard({ assessment, org, funding, financials, fundingTotalAmount, onRecordDecision }) {
   const [showIndicators, setShowIndicators] = useState(false);
   const [showScoring, setShowScoring] = useState(false);
 
-  // Run live engines from current entity data
-  const mismatchInput = buildMismatchInput(org, financials, funding);
+  // Run live engines from current entity data. fundingTotalAmount is the
+  // authoritative server-side sum (across all paged funding rows, not just
+  // the loaded page); the mismatch engine uses it as the totalRevenue
+  // fallback when the entity has no T3010 filing.
+  const mismatchInput = buildMismatchInput(org, financials, funding, {
+    totalFundingOverride: fundingTotalAmount,
+  });
   const mismatch = runMismatchEngine(mismatchInput);
 
   const patternInput = buildCredibilityInput(financials);

@@ -140,10 +140,17 @@ export function runMismatchEngine(input) {
 /**
  * Converts raw Organization + FinancialIndicators + FundingRecords entities
  * into the mismatch engine input format.
+ *
+ * `opts.totalFundingOverride` is the authoritative server-side total funding
+ * sum (across all paged rows). Pass meta.totalAmount from /api/funding so the
+ * engine's total_revenue fallback isn't truncated to a single 500-row page.
  */
-export function buildMismatchInput(org, financials = [], funding = []) {
+export function buildMismatchInput(org, financials = [], funding = [], opts = {}) {
   const fin = financials[0] || {};
-  const totalFundingAmount = funding.reduce((s, f) => s + (f.fundingAmount || 0), 0);
+  // Prefer server-side authoritative total when caller supplies it.
+  const totalFundingAmount = (typeof opts.totalFundingOverride === 'number' && opts.totalFundingOverride > 0)
+    ? opts.totalFundingOverride
+    : funding.reduce((s, f) => s + (f.fundingAmount || 0), 0);
 
   const total_revenue = fin.totalRevenue || totalFundingAmount || 0;
   const total_expenses = fin.totalExpenses || 0;
@@ -152,9 +159,15 @@ export function buildMismatchInput(org, financials = [], funding = []) {
     ? Math.round((program_expense / total_expenses) * 100)
     : 0;
 
-  const government_funding_percentage = total_revenue > 0
-    ? Math.round(((fin.governmentRevenue || 0) / total_revenue) * 100)
-    : 0;
+  // For non-charity entities `fin` is empty → fin.governmentRevenue is null.
+  // But every row in /api/funding is, by construction, government money
+  // (fed grants + AB grants + AB contracts + AB sole-source). So when the
+  // funding-records sum is the only revenue signal we have, it's 100%
+  // government — not 0% as the previous formula reported.
+  const hasCraRevenue = typeof fin.totalRevenue === 'number' && fin.totalRevenue > 0;
+  const government_funding_percentage = hasCraRevenue
+    ? Math.round(((fin.governmentRevenue || 0) / fin.totalRevenue) * 100)
+    : (totalFundingAmount > 0 ? 100 : 0);
 
   const total_compensation = fin.compensationExpense || 0;
 
