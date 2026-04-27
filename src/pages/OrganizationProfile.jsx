@@ -27,7 +27,15 @@ export default function OrganizationProfile() {
     enabled: !!orgId,
   });
 
-  const { data: funding = [] } = useQuery({ queryKey: ['funding', orgId], queryFn: () => base44.entities.FundingRecords.filter({ organizationId: orgId }) });
+  // Use listPage so we get authoritative meta.total + meta.totalAmount.
+  const { data: fundingPage } = useQuery({
+    queryKey: ['funding', 'page1', orgId],
+    queryFn: () => base44.entities.FundingRecords.listPage({ organizationId: orgId, limit: 500 }),
+    enabled: !!orgId,
+  });
+  const funding = fundingPage?.data ?? [];
+  const fundingTotalCount = fundingPage?.meta?.total ?? funding.length;
+  const fundingTotalAmount = fundingPage?.meta?.totalAmount ?? null;
   const { data: financials = [] } = useQuery({ queryKey: ['financials', orgId], queryFn: () => base44.entities.FinancialIndicators.filter({ organizationId: orgId }) });
   const { data: assessments = [] } = useQuery({ queryKey: ['assessments-org', orgId], queryFn: () => base44.entities.CapacityAssessments.filter({ organizationId: orgId }) });
   const { data: allBenchmarks = [] } = useQuery({ queryKey: ['benchmarks'], queryFn: () => base44.entities.Benchmarks.list() });
@@ -46,7 +54,13 @@ export default function OrganizationProfile() {
   const runAssessment = async () => {
     if (!org) return;
     setIsRunning(true);
-    const scores = calculateCapacityScores(org, funding, financials, [], resolvedBenchmark);
+    // Pass the authoritative funding total (across ALL paged records, not just
+    // the first page) into the scoring engine. Without this override the engine
+    // would only see funding[0..499].fundingAmount for entities with >500 records.
+    const scores = calculateCapacityScores(
+      org, funding, financials, [], resolvedBenchmark,
+      { totalFundingOverride: fundingTotalAmount },
+    );
 
     let aiSummary = '';
     try {
@@ -175,8 +189,9 @@ Reflect the Risk Nature Classification in your summary. Write in neutral, eviden
 
         {/* Data availability chips */}
         <div className="flex flex-wrap gap-1.5 pt-1 border-t border-border">
-          <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${funding.length > 0 ? 'bg-green-50 border-green-200 text-green-700' : 'bg-muted border-border text-muted-foreground'}`}>
-            {funding.length} funding record{funding.length !== 1 ? 's' : ''}
+          <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${fundingTotalCount > 0 ? 'bg-green-50 border-green-200 text-green-700' : 'bg-muted border-border text-muted-foreground'}`}
+            title={fundingTotalAmount != null ? `Total funding sum: ${new Intl.NumberFormat('en-CA',{style:'currency',currency:'CAD',maximumFractionDigits:0}).format(fundingTotalAmount)}` : undefined}>
+            {fundingTotalCount.toLocaleString()} funding record{fundingTotalCount !== 1 ? 's' : ''}
           </span>
           <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${financials.length > 0 ? 'bg-green-50 border-green-200 text-green-700' : 'bg-muted border-border text-muted-foreground'}`}>
             {financials.length} financial year{financials.length !== 1 ? 's' : ''}

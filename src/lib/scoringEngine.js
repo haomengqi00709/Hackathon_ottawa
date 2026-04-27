@@ -145,9 +145,14 @@ function applyBenchmarkModifiers(scores, org, fin, benchmark, factors) {
   return modifiers.length > 0;
 }
 
-export function calculateCapacityScores(org, funding, financials, benchmarks, benchmark = null) {
+export function calculateCapacityScores(org, funding, financials, benchmarks, benchmark = null, opts = {}) {
   const factors = [];
-  const totalFunding = funding.reduce((sum, f) => sum + (f.fundingAmount || 0), 0);
+  // Prefer an authoritative server-side total (across all paged funding rows)
+  // over funding.reduce(), which only sees the loaded page. The fallback keeps
+  // back-compat for callers that don't pass an override.
+  const totalFunding = (typeof opts.totalFundingOverride === 'number' && opts.totalFundingOverride > 0)
+    ? opts.totalFundingOverride
+    : funding.reduce((sum, f) => sum + (f.fundingAmount || 0), 0);
   const fin = financials[0] || {};
 
   const employees = org.employeeCount || 0;

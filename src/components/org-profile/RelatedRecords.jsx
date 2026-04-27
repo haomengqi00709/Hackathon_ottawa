@@ -21,9 +21,13 @@ async function fetchDossier(id) {
   return j.data;
 }
 
-function Section({ icon: Icon, title, count, children, defaultOpen = false }) {
+function Section({ icon: Icon, title, shown, total, sumLabel, children, defaultOpen = false }) {
   const [open, setOpen] = useState(defaultOpen);
-  const empty = !count;
+  // shown = rows visible in this section; total = true count across the entity
+  // (the section may be truncated by the dossier's per-section LIMIT).
+  const realTotal = total != null ? total : shown;
+  const empty = !realTotal;
+  const truncated = total != null && shown < total;
   return (
     <div className="border border-border rounded-lg">
       <button
@@ -35,11 +39,29 @@ function Section({ icon: Icon, title, count, children, defaultOpen = false }) {
         {open ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
         <Icon className="w-4 h-4" />
         <span className="flex-1 text-left">{title}</span>
+        {sumLabel && !empty && (
+          <span className="text-[10px] text-muted-foreground tabular-nums">{sumLabel}</span>
+        )}
         <Badge variant={empty ? 'outline' : 'secondary'} className="text-[10px]">
-          {empty ? 'no data' : `${count} rows`}
+          {empty
+            ? 'no data'
+            : truncated
+              ? `${shown.toLocaleString()} of ${realTotal.toLocaleString()}`
+              : `${realTotal.toLocaleString()} row${realTotal === 1 ? '' : 's'}`}
         </Badge>
       </button>
-      {open && !empty && <div className="px-3 pb-3 pt-1">{children}</div>}
+      {open && !empty && (
+        <div className="px-3 pb-3 pt-1">
+          {truncated && (
+            <div className="mb-2 px-2 py-1.5 rounded bg-amber-50 border border-amber-200 text-[11px] text-amber-800">
+              Showing the top {shown.toLocaleString()} of {realTotal.toLocaleString()} rows.
+              The remaining {(realTotal - shown).toLocaleString()} are not loaded here — query the
+              underlying endpoint with offset / limit to page through them all.
+            </div>
+          )}
+          {children}
+        </div>
+      )}
     </div>
   );
 }
@@ -103,7 +125,9 @@ export default function RelatedRecords({ orgId }) {
   }
   if (!data) return null;
 
-  const { entity, bnRoots, abOnly, abNonProfit, cra, loops, funding, publicContracts, userAdded, adverseMedia } = data;
+  const { entity, bnRoots, abOnly, abNonProfit, cra, loops, funding, publicContracts, userAdded, adverseMedia, totals } = data;
+  const t = totals ?? {};
+  const sumLabel = (sum) => (sum == null || sum === 0 ? null : fmt(sum));
 
   return (
     <div className="bg-card border border-border rounded-xl p-5 space-y-4">
@@ -128,7 +152,8 @@ export default function RelatedRecords({ orgId }) {
 
       <div className="space-y-2">
         {/* Funding flows ─────────────────────────────────────────────── */}
-        <Section icon={Banknote} title="Federal grants & contributions" count={funding?.fed?.length}>
+        <Section icon={Banknote} title="Federal grants & contributions"
+                 shown={funding?.fed?.length} total={t.fed?.count} sumLabel={sumLabel(t.fed?.sum)}>
           <MiniTable
             rows={funding?.fed ?? []}
             columns={[
@@ -140,7 +165,8 @@ export default function RelatedRecords({ orgId }) {
           />
         </Section>
 
-        <Section icon={Banknote} title="Alberta grants" count={funding?.abGrants?.length}>
+        <Section icon={Banknote} title="Alberta grants"
+                 shown={funding?.abGrants?.length} total={t.abGrants?.count} sumLabel={sumLabel(t.abGrants?.sum)}>
           <MiniTable
             rows={funding?.abGrants ?? []}
             columns={[
@@ -152,7 +178,8 @@ export default function RelatedRecords({ orgId }) {
           />
         </Section>
 
-        <Section icon={Receipt} title="Alberta contracts" count={funding?.abContracts?.length}>
+        <Section icon={Receipt} title="Alberta contracts"
+                 shown={funding?.abContracts?.length} total={t.abContracts?.count} sumLabel={sumLabel(t.abContracts?.sum)}>
           <MiniTable
             rows={funding?.abContracts ?? []}
             columns={[
@@ -163,7 +190,8 @@ export default function RelatedRecords({ orgId }) {
           />
         </Section>
 
-        <Section icon={Receipt} title="Alberta sole-source" count={funding?.abSoleSource?.length}>
+        <Section icon={Receipt} title="Alberta sole-source"
+                 shown={funding?.abSoleSource?.length} total={t.abSoleSource?.count} sumLabel={sumLabel(t.abSoleSource?.sum)}>
           <MiniTable
             rows={funding?.abSoleSource ?? []}
             columns={[
@@ -175,7 +203,7 @@ export default function RelatedRecords({ orgId }) {
           />
         </Section>
 
-        <Section icon={Receipt} title="Federal contracts (fuzzy name match)" count={publicContracts?.length}>
+        <Section icon={Receipt} title="Federal contracts (fuzzy name match)" shown={publicContracts?.length}>
           <MiniTable
             rows={publicContracts ?? []}
             columns={[
@@ -191,7 +219,8 @@ export default function RelatedRecords({ orgId }) {
         </Section>
 
         {/* CRA detail ─────────────────────────────────────────────────── */}
-        <Section icon={FileText} title="CRA financials by year" count={cra?.financials?.length}>
+        <Section icon={FileText} title="CRA financials by year"
+                 shown={cra?.financials?.length} total={t.craFinancials?.count}>
           <MiniTable
             rows={cra?.financials ?? []}
             columns={[
@@ -205,7 +234,8 @@ export default function RelatedRecords({ orgId }) {
           />
         </Section>
 
-        <Section icon={Users} title="CRA directors (latest fiscal period)" count={cra?.directors?.length}>
+        <Section icon={Users} title="CRA directors (latest fiscal period)"
+                 shown={cra?.directors?.length} total={t.craDirectors?.count}>
           <MiniTable
             rows={cra?.directors ?? []}
             columns={[
@@ -219,7 +249,7 @@ export default function RelatedRecords({ orgId }) {
           />
         </Section>
 
-        <Section icon={Users} title="CRA compensation (latest)" count={cra?.compensation?.length}>
+        <Section icon={Users} title="CRA compensation (latest)" shown={cra?.compensation?.length}>
           <MiniTable
             rows={cra?.compensation ?? []}
             columns={[
@@ -231,7 +261,8 @@ export default function RelatedRecords({ orgId }) {
           />
         </Section>
 
-        <Section icon={FileText} title="CRA charitable programs" count={cra?.programs?.length}>
+        <Section icon={FileText} title="CRA charitable programs"
+                 shown={cra?.programs?.length} total={t.craPrograms?.count}>
           <MiniTable
             rows={cra?.programs ?? []}
             columns={[
@@ -242,7 +273,8 @@ export default function RelatedRecords({ orgId }) {
           />
         </Section>
 
-        <Section icon={AlertTriangle} title="CRA T3010 plausibility / impossibility flags" count={cra?.t3010Flags?.length}>
+        <Section icon={AlertTriangle} title="CRA T3010 plausibility / impossibility flags"
+                 shown={cra?.t3010Flags?.length} total={t.craFlags?.count}>
           <MiniTable
             rows={cra?.t3010Flags ?? []}
             columns={[
@@ -256,7 +288,8 @@ export default function RelatedRecords({ orgId }) {
           />
         </Section>
 
-        <Section icon={Gift} title="Gifts to qualified donees (out)" count={cra?.giftsGiven?.length}>
+        <Section icon={Gift} title="Gifts to qualified donees (out)"
+                 shown={cra?.giftsGiven?.length} total={t.craGiftsGiven?.count}>
           <MiniTable
             rows={cra?.giftsGiven ?? []}
             columns={[
@@ -268,7 +301,8 @@ export default function RelatedRecords({ orgId }) {
           />
         </Section>
 
-        <Section icon={Gift} title="Gifts received from other charities" count={cra?.giftsReceived?.length}>
+        <Section icon={Gift} title="Gifts received from other charities"
+                 shown={cra?.giftsReceived?.length} total={t.craGiftsReceived?.count}>
           <MiniTable
             rows={cra?.giftsReceived ?? []}
             columns={[
@@ -281,7 +315,8 @@ export default function RelatedRecords({ orgId }) {
         </Section>
 
         {/* Money-flow graph ─────────────────────────────────────────── */}
-        <Section icon={Repeat} title="Loop participation" count={loops?.loops?.length}>
+        <Section icon={Repeat} title="Loop participation"
+                 shown={loops?.loops?.length} total={t.loops?.count}>
           <MiniTable
             rows={loops?.loops ?? []}
             columns={[
@@ -297,7 +332,7 @@ export default function RelatedRecords({ orgId }) {
         </Section>
 
         {/* AB registry ──────────────────────────────────────────────── */}
-        <Section icon={Building} title="Alberta non-profit registry" count={abNonProfit ? 1 : 0}>
+        <Section icon={Building} title="Alberta non-profit registry" shown={abNonProfit ? 1 : 0}>
           {abNonProfit && (
             <div className="grid grid-cols-2 gap-2 text-xs">
               <Stat label="Status" value={abNonProfit.status} />
@@ -311,7 +346,7 @@ export default function RelatedRecords({ orgId }) {
         </Section>
 
         {/* Adverse media + user data ─────────────────────────────────── */}
-        <Section icon={AlertTriangle} title="Adverse media events" count={adverseMedia?.length}>
+        <Section icon={AlertTriangle} title="Adverse media events" shown={adverseMedia?.length}>
           <MiniTable
             rows={adverseMedia ?? []}
             columns={[
@@ -323,7 +358,7 @@ export default function RelatedRecords({ orgId }) {
           />
         </Section>
 
-        <Section icon={Database} title="User-added records" count={(userAdded?.assessments?.length || 0) + (userAdded?.financials?.length || 0) + (userAdded?.funding?.length || 0)}>
+        <Section icon={Database} title="User-added records" shown={(userAdded?.assessments?.length || 0) + (userAdded?.financials?.length || 0) + (userAdded?.funding?.length || 0)}>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
             <Stat label="Assessments" value={userAdded?.assessments?.length ?? 0} />
             <Stat label="Decisions" value={userAdded?.decisions?.length ?? 0} />
