@@ -137,7 +137,21 @@ Reflect the Risk Nature Classification in your summary. Write in neutral, eviden
             <div className="flex flex-wrap gap-3 text-xs text-muted-foreground mt-1.5">
               {org.jurisdiction && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{org.jurisdiction}</span>}
               {org.yearFounded && <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />Est. {org.yearFounded}</span>}
-              <span className="flex items-center gap-1"><Users className="w-3 h-3" />{org.employeeCount || 0} employees · {org.volunteerCount || 0} volunteers</span>
+              <span
+                className="flex items-center gap-1"
+                title={
+                  org.bnVariantCount > 1
+                    ? `Aggregated from latest T3010 across ${org.bnVariantCount} registered-charity BNs under bn_root ${org.registrationNumber}`
+                    : org.registrationNumber
+                    ? 'From latest T3010 (cra_compensation.field_370)'
+                    : 'No CRA T3010 filing for this entity'
+                }
+              >
+                <Users className="w-3 h-3" />
+                {org.employeeCount == null ? '— employees' : `${Number(org.employeeCount).toLocaleString()} employees`}
+                {' · '}
+                {org.volunteerCount == null ? '— volunteers' : `${Number(org.volunteerCount).toLocaleString()} volunteers`}
+              </span>
               {org.website && <a href={org.website} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:text-primary"><Globe className="w-3 h-3" />{org.website}</a>}
             </div>
           </div>
