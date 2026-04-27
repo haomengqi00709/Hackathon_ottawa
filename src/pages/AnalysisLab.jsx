@@ -11,8 +11,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { apiBase } from '@/api/httpClient';
 
-const DEFAULT_API_URL = 'http://localhost:8000';
+// Default points at funding-data-backend (Express, port 4000).
+const DEFAULT_API_URL = apiBase();
 
 const DEFAULT_GHOST_W = { no_employees: 3, govt_dependency: 2, no_programs: 3, comp_no_staff: 2 };
 const DEFAULT_CAP_W   = { staffing: 20, delivery: 25, program: 25, revenue: 15, infra: 10, compliance: 5 };
@@ -53,7 +55,9 @@ function GhostBar({ score }) {
 }
 
 export default function AnalysisLab() {
-  const [apiUrl, setApiUrl]         = useState(() => localStorage.getItem('api_url') || DEFAULT_API_URL);
+  // Use a Lab-scoped storage key so it doesn't fight with the legacy 'api_url'
+  // key (which used to point at a now-retired FastAPI on :8000).
+  const [apiUrl, setApiUrl]         = useState(() => localStorage.getItem('lab_api_url') || DEFAULT_API_URL);
   const [apiStatus, setApiStatus]   = useState('unknown'); // 'ok' | 'error' | 'unknown'
   const [recordCount, setRecordCount] = useState(null);
 
@@ -75,7 +79,7 @@ export default function AnalysisLab() {
 
   const saveApiUrl = (url) => {
     setApiUrl(url);
-    localStorage.setItem('api_url', url);
+    localStorage.setItem('lab_api_url', url);
   };
 
   const checkHealth = useCallback(async (url = apiUrl) => {
@@ -189,7 +193,8 @@ export default function AnalysisLab() {
 
       {apiStatus === 'error' && (
         <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          <strong>Server not running.</strong> In terminal: <code className="bg-amber-100 px-1 rounded">cd Hackathon && uvicorn analysis_server:app --reload --port 8000</code>
+          <strong>Backend not reachable.</strong> Start the API:{' '}
+          <code className="bg-amber-100 px-1 rounded">cd funding-data-backend && npm run dev</code>
         </div>
       )}
 

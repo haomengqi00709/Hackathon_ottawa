@@ -9,8 +9,12 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { apiBase } from '@/api/httpClient';
 
-const DEFAULT_API = 'http://localhost:8000';
+// Default points at funding-data-backend (Express, port 4000). Users can still
+// override via the URL field (saved to localStorage) — useful if running the
+// API on a different port for dev or pointing at a deployed instance.
+const DEFAULT_API = apiBase();
 
 // ── Sidebar preset definitions ─────────────────────────────────────────────
 const SIDEBAR = [
@@ -92,7 +96,9 @@ function typeColor(t) {
 
 // ── Main component ─────────────────────────────────────────────────────────
 export default function DataExplorer() {
-  const [apiUrl, setApiUrl]       = useState(() => localStorage.getItem('api_url') || DEFAULT_API);
+  // Use a DataExplorer-scoped storage key so it doesn't fight with the legacy
+  // 'api_url' key (which used to point at a now-retired FastAPI on :8000).
+  const [apiUrl, setApiUrl]       = useState(() => localStorage.getItem('explorer_api_url') || DEFAULT_API);
   const [apiStatus, setApiStatus] = useState('unknown');
 
   // active query state
@@ -122,7 +128,7 @@ export default function DataExplorer() {
 
   const searchTimer = useRef(null);
 
-  const saveApi = (u) => { setApiUrl(u); localStorage.setItem('api_url', u); };
+  const saveApi = (u) => { setApiUrl(u); localStorage.setItem('explorer_api_url', u); };
 
   // health check
   const checkHealth = useCallback(async (url = apiUrl) => {
@@ -256,7 +262,7 @@ export default function DataExplorer() {
           </div>
           {apiStatus === 'error' && (
             <p className="text-[10px] text-red-500 mt-1 px-1">
-              Start: <code>uvicorn analysis_server:app --port 8000</code>
+              Start: <code>cd funding-data-backend && npm run dev</code>
             </p>
           )}
         </div>
