@@ -327,7 +327,14 @@ export default function Dashboard() {
           </div>
           <p className="text-xs text-muted-foreground sm:text-right flex-shrink-0">
             {assessmentStats
-              ? `${assessmentStats.total.toLocaleString()} assessments stored`
+              ? (() => {
+                  const batch = assessmentStats.byVersion?.['auto-v1'] ?? 0;
+                  const reviewer = (assessmentStats.total ?? 0) - batch;
+                  // Distinct entities ≈ batch count (one auto-v1 row per
+                  // entity). Reviewer rows overlap the batch entities.
+                  const entitiesScored = batch || assessmentStats.total;
+                  return `${entitiesScored.toLocaleString()} entities scored${reviewer > 0 ? ` · ${reviewer.toLocaleString()} reviewer override${reviewer > 1 ? 's' : ''}` : ''}`;
+                })()
               : `${latest.length.toLocaleString()} on this page`}
             {stats ? ` · ${stats.totalEntities.toLocaleString()} entities indexed` : ''}
           </p>
@@ -403,10 +410,17 @@ export default function Dashboard() {
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
         <StatPill
-          title="Assessments Stored"
-          value={assessmentStats ? assessmentStats.total.toLocaleString() : latest.length.toLocaleString()}
+          title="Entities Scored"
+          value={assessmentStats?.byVersion?.['auto-v1']
+            ? assessmentStats.byVersion['auto-v1'].toLocaleString()
+            : (assessmentStats ? assessmentStats.total.toLocaleString() : latest.length.toLocaleString())}
           sub={assessmentStats?.byVersion?.['auto-v1']
-            ? `${assessmentStats.byVersion['auto-v1'].toLocaleString()} batch · ${(assessmentStats.total - assessmentStats.byVersion['auto-v1']).toLocaleString()} reviewer`
+            ? (() => {
+                const reviewer = (assessmentStats.total ?? 0) - assessmentStats.byVersion['auto-v1'];
+                return reviewer > 0
+                  ? `+ ${reviewer.toLocaleString()} reviewer override${reviewer > 1 ? 's' : ''}`
+                  : 'batch precompute';
+              })()
             : 'reviewer-driven'}
         />
         <StatPill title="Avg. Score" value={avgScore > 0 ? avgScore : '–'} sub="out of 100"
