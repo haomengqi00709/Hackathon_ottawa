@@ -36,6 +36,32 @@ function makeEntity(table) {
   };
 }
 
+// ── CRA live data client — calls local FastAPI instead of Supabase ────────────
+const getCRABase = () => localStorage.getItem('api_url') || 'http://localhost:8000';
+
+async function fetchCRA(path) {
+  const r = await fetch(`${getCRABase()}${path}`);
+  if (!r.ok) throw new Error(`CRA API error: ${r.status}`);
+  return r.json();
+}
+
+export const craApi = {
+  entities: {
+    Organizations: {
+      list: () => fetchCRA('/api/engine/organizations?limit=500').then(d => d.organizations || []),
+    },
+    FinancialIndicators: {
+      list: () => fetchCRA('/api/engine/financials?limit=500').then(d => d.financials || []),
+    },
+    FundingRecords: {
+      list: () => Promise.resolve([]),
+    },
+    CapacityAssessments: {
+      list: () => Promise.resolve([]),
+    },
+  },
+};
+
 export const base44 = {
   entities: {
     Organizations:       makeEntity('organizations'),

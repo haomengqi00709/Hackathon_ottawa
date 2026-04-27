@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { base44 } from '@/api/base44Client';
+import { craApi as base44 } from '@/api/base44Client';
 import { Loader2, ScanSearch, AlertTriangle, CheckCircle2, Minus, Info } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { runMismatchEngine, buildMismatchInput, getMismatchStyle, MISMATCH_RULES } from '@/lib/mismatchEngine';
