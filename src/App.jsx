@@ -17,6 +17,9 @@ import SettingsPage from '@/pages/SettingsPage';
 import IntakePage from '@/pages/IntakePage';
 import AnalysisLab from '@/pages/AnalysisLab';
 import DataExplorer from '@/pages/DataExplorer';
+import MismatchEngine from '@/pages/MismatchEngine';
+import CredibilityEngine from '@/pages/CredibilityEngine';
+import DecisionEngine from '@/pages/DecisionEngine';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -50,6 +53,9 @@ const AuthenticatedApp = () => {
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/lab" element={<AnalysisLab />} />
         <Route path="/explorer" element={<DataExplorer />} />
+        <Route path="/mismatch" element={<MismatchEngine />} />
+        <Route path="/credibility" element={<CredibilityEngine />} />
+        <Route path="/decisions" element={<DecisionEngine />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>

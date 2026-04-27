@@ -56,7 +56,96 @@ export const RISK_NATURE_CONFIG = {
   },
 };
 
-export function calculateCapacityScores(org, funding, financials, benchmarks) {
+/**
+ * Apply a matched benchmark record as score modifiers on top of the base capacity scores.
+ * Each benchmark threshold is compared to the org's actual data; if the org falls below
+ * the benchmark expectation, a penalty is applied to the relevant sub-score.
+ *
+ * @param {object} scores  — the raw scores object (mutated in place)
+ * @param {object} org
+ * @param {object} financials — first financial record
+ * @param {object} benchmark — matched Benchmark entity record
+ * @param {Array}  factors   — mutable factors array to append benchmark notes to
+ */
+function applyBenchmarkModifiers(scores, org, fin, benchmark, factors) {
+  const modifiers = [];
+
+  // 1. Min employees benchmark
+  const minEmp = benchmark.minimumExpectedEmployees;
+  if (minEmp && minEmp > 0) {
+    const actual = org.employeeCount || 0;
+    if (actual < minEmp) {
+      const gap = minEmp - actual;
+      const penalty = Math.min(20, gap * 4); // up to 20pt penalty
+      scores.staffingScore = Math.max(0, scores.staffingScore - penalty);
+      modifiers.push({
+        area: 'Staffing Adequacy',
+        severity: actual === 0 ? 'high' : 'moderate',
+        detail: `Benchmark for this category requires at least ${minEmp} employee${minEmp !== 1 ? 's' : ''}. This organization reports ${actual}. Score adjusted by −${penalty} points.`,
+      });
+    }
+  }
+
+  // 2. Min infrastructure level benchmark
+  const infraOrder = { none: 0, light: 1, moderate: 2, significant: 3 };
+  const minInfra = benchmark.minimumInfrastructureLevel;
+  if (minInfra) {
+    const actualInfra = org.physicalPresenceStatus === 'confirmed' ? 'significant'
+      : org.physicalPresenceStatus === 'limited' ? 'light'
+      : org.physicalPresenceStatus === 'none' ? 'none'
+      : 'light';
+    const actualLevel = infraOrder[actualInfra] ?? 1;
+    const requiredLevel = infraOrder[minInfra] ?? 0;
+    if (actualLevel < requiredLevel) {
+      const penalty = (requiredLevel - actualLevel) * 10;
+      scores.infrastructureScore = Math.max(0, scores.infrastructureScore - penalty);
+      modifiers.push({
+        area: 'Infrastructure & Status',
+        severity: 'moderate',
+        detail: `Benchmark for this category requires "${minInfra}" infrastructure or better. This organization's presence is "${actualInfra}". Score adjusted by −${penalty} points.`,
+      });
+    }
+  }
+
+  // 3. Expected program expense ratio benchmark
+  const expectedPER = benchmark.expectedProgramExpenseRatio;
+  if (expectedPER && expectedPER > 0 && fin.totalExpenses > 0) {
+    const actualPER = (fin.programExpense || 0) / fin.totalExpenses;
+    if (actualPER < expectedPER) {
+      const gap = expectedPER - actualPER; // 0–1
+      const penalty = Math.round(Math.min(25, gap * 60)); // up to 25pt penalty
+      scores.programExpenseScore = Math.max(0, scores.programExpenseScore - penalty);
+      modifiers.push({
+        area: 'Program Spending',
+        severity: actualPER < expectedPER * 0.6 ? 'high' : 'moderate',
+        detail: `Benchmark for this category expects a program expense ratio of ${Math.round(expectedPER * 100)}%. This organization's ratio is ${Math.round(actualPER * 100)}%. Score adjusted by −${penalty} points.`,
+      });
+    }
+  }
+
+  // 4. Max government dependency benchmark
+  const maxGovDep = benchmark.maxGovernmentDependencyRatio;
+  if (maxGovDep && maxGovDep > 0 && fin.totalRevenue > 0) {
+    const actualGovDep = (fin.governmentRevenue || 0) / fin.totalRevenue;
+    if (actualGovDep > maxGovDep) {
+      const gap = actualGovDep - maxGovDep; // 0–1
+      const penalty = Math.round(Math.min(20, gap * 50)); // up to 20pt penalty
+      scores.revenueDiversityScore = Math.max(0, scores.revenueDiversityScore - penalty);
+      modifiers.push({
+        area: 'Revenue Diversity',
+        severity: actualGovDep > maxGovDep + 0.15 ? 'high' : 'moderate',
+        detail: `Benchmark for this category caps government dependency at ${Math.round(maxGovDep * 100)}%. This organization is at ${Math.round(actualGovDep * 100)}%. Score adjusted by −${penalty} points.`,
+      });
+    }
+  }
+
+  // Append modifier factors (tagged as benchmark findings)
+  modifiers.forEach(m => factors.push({ ...m, isBenchmarkModifier: true }));
+
+  return modifiers.length > 0;
+}
+
+export function calculateCapacityScores(org, funding, financials, benchmarks, benchmark = null) {
   const factors = [];
   const totalFunding = funding.reduce((sum, f) => sum + (f.fundingAmount || 0), 0);
   const fin = financials[0] || {};
@@ -221,6 +310,20 @@ export function calculateCapacityScores(org, funding, financials, benchmarks) {
     factors.push({ area: 'Compliance & Reporting', severity: 'moderate', detail: 'Filing status could not be confirmed. Recommend requesting current financial statements directly.' });
   } else {
     factors.push({ area: 'Compliance & Reporting', severity: 'low', detail: 'Financial filings are current. No reporting compliance issues identified.' });
+  }
+
+  // ─── BENCHMARK MODIFIERS (applied before final roll-up) ──────────────────
+  const scoreObj = { staffingScore, infrastructureScore, programExpenseScore, revenueDiversityScore, deliveryPlausibilityScore, complianceScore };
+  let benchmarkApplied = false;
+  if (benchmark) {
+    benchmarkApplied = applyBenchmarkModifiers(scoreObj, org, fin, benchmark, factors);
+    // Pull back into locals after modification
+    staffingScore             = scoreObj.staffingScore;
+    infrastructureScore       = scoreObj.infrastructureScore;
+    programExpenseScore       = scoreObj.programExpenseScore;
+    revenueDiversityScore     = scoreObj.revenueDiversityScore;
+    deliveryPlausibilityScore = scoreObj.deliveryPlausibilityScore;
+    complianceScore           = scoreObj.complianceScore;
   }
 
   // ─── OVERALL WEIGHTED SCORE (Layer 1) ─────────────────────────────────────
@@ -392,6 +495,8 @@ export function calculateCapacityScores(org, funding, financials, benchmarks) {
     humanReviewRequired,
     factors,
     whyThisCase,
+    benchmarkApplied,
+    benchmarkCategory: benchmark?.benchmarkCategory || null,
   };
 }
 

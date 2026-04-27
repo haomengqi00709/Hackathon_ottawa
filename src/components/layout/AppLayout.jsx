@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Building2, ClipboardCheck, FileSearch,
-  ListChecks, Sliders, Settings, Shield, Menu, X, ChevronRight, ClipboardList, FlaskConical, Database
+  ListChecks, Sliders, Settings, Shield, Menu, X, ChevronRight, ClipboardList, FlaskConical, Database,
+  ScanSearch, Activity, Zap
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -13,6 +14,9 @@ const navItems = [
   { path: '/review-queue', label: 'Review Queue', icon: ListChecks },
   { path: '/lab', label: 'Analysis Lab', icon: FlaskConical },
   { path: '/explorer', label: 'Data Explorer', icon: Database },
+  { path: '/mismatch', label: 'Mismatch Engine', icon: ScanSearch },
+  { path: '/credibility', label: 'Credibility Engine', icon: Activity },
+  { path: '/decisions', label: 'Decision Engine', icon: Zap },
   { path: '/benchmarks', label: 'Benchmarks', icon: Sliders },
   { path: '/settings', label: 'Settings', icon: Settings },
 ];

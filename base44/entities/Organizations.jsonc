@@ -56,11 +56,15 @@
     },
     "employeeCount": {
       "type": "number",
-      "description": "Number of employees"
+      "description": "Number of full-time employees"
     },
     "volunteerCount": {
       "type": "number",
-      "description": "Number of volunteers"
+      "description": "Number of part-time staff or volunteers"
+    },
+    "numberOfDirectors": {
+      "type": "number",
+      "description": "Number of directors on the board of directors"
     },
     "yearFounded": {
       "type": "number",
