@@ -64,22 +64,12 @@ export default function OrganizationsList() {
   const orgs = pageData?.data ?? [];
   const meta = pageData?.meta;
 
-  // Pull all assessments — usually a small sqlite table. If it ever grows we
-  // can switch to listAll().
-  const { data: assessments = [] } = useQuery({
-    queryKey: ['assessments-all'],
-    queryFn: () => base44.entities.CapacityAssessments.list(),
-  });
-
-  const latestAssessments = useMemo(() => {
-    const map = {};
-    assessments.forEach(a => {
-      if (!map[a.organizationId] || new Date(a.assessmentDate ?? 0) > new Date(map[a.organizationId].assessmentDate ?? 0)) {
-        map[a.organizationId] = a;
-      }
-    });
-    return map;
-  }, [assessments]);
+  // The orgs list endpoint inlines the latest precomputed assessment fields
+  // on each row (overallCapacityScore, capacityReadinessScore,
+  // integrityConcernScore, riskLevel, riskNature, ghostScore, ghostFlags).
+  // No separate /api/assessments fetch needed — the previous approach loaded
+  // a 100-row sample globally and looked up by org.id, which never matched
+  // for any entity outside that small slice.
 
   const provinces = PROVINCES_FALLBACK;
 
@@ -90,26 +80,26 @@ export default function OrganizationsList() {
     zeroEmployeesOnly,
   ].filter(Boolean).length;
 
-  // Page-local refinement: filters that depend on assessments run on the
-  // current page only. The total/page-count comes from the server.
+  // Page-local refinement: filters that depend on the inlined assessment
+  // fields. The total/page-count comes from the server.
   const filtered = useMemo(() => {
     const rows = orgs.filter(o => {
       if (zeroEmployeesOnly && (o.employeeCount ?? 1) !== 0) return false;
-      const a = latestAssessments[o.id];
+      const hasAssessment = o.riskLevel != null;
       if (riskFilter !== 'all') {
-        if (!a) return riskFilter === 'unassessed';
-        if (a.riskLevel !== riskFilter) return false;
+        if (!hasAssessment) return riskFilter === 'unassessed';
+        if (o.riskLevel !== riskFilter) return false;
       }
       if (riskNatureFilter !== 'all') {
-        if (!a || a.riskNature !== riskNatureFilter) return false;
+        if (!hasAssessment || o.riskNature !== riskNatureFilter) return false;
       }
       if (ghostMin > 0) {
-        if (!a || (a.ghostScore ?? 0) < ghostMin) return false;
+        if ((o.ghostScore ?? 0) < ghostMin) return false;
       }
       return true;
     });
     return rows;
-  }, [orgs, latestAssessments, riskFilter, riskNatureFilter, ghostMin, zeroEmployeesOnly]);
+  }, [orgs, riskFilter, riskNatureFilter, ghostMin, zeroEmployeesOnly]);
 
   const clearFilters = () => {
     setRiskFilter('all');
@@ -207,10 +197,10 @@ export default function OrganizationsList() {
                     <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="All Types" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Types</SelectItem>
-                      <SelectItem value="High Concern">High Concern</SelectItem>
-                      <SelectItem value="Overstretched">Overstretched</SelectItem>
-                      <SelectItem value="Underdeveloped">Underdeveloped</SelectItem>
                       <SelectItem value="Ready">Ready</SelectItem>
+                      <SelectItem value="Emerging but Underdeveloped">Emerging but Underdeveloped</SelectItem>
+                      <SelectItem value="Overstretched / Request Exceeds Capacity">Overstretched</SelectItem>
+                      <SelectItem value="High Concern / Enhanced Due Diligence Required">High Concern</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -261,8 +251,8 @@ export default function OrganizationsList() {
                   </TableRow>
                 )}
                 {filtered.map(org => {
-                  const assessment = latestAssessments[org.id];
-                  const ghost = assessment?.ghostScore ?? null;
+                  const ghost = org.ghostScore;
+                  const score = org.overallCapacityScore;
                   return (
                     <TableRow
                       key={org.id}
@@ -289,24 +279,24 @@ export default function OrganizationsList() {
                             : Number(org.employeeCount).toLocaleString()}
                       </TableCell>
                       <TableCell>
-                        {ghost !== null ? (
+                        {ghost != null ? (
                           <span className={`font-bold tabular-nums text-sm ${ghost >= 8 ? 'text-red-600' : ghost >= 5 ? 'text-orange-500' : 'text-muted-foreground'}`}>
                             {ghost}/10
                           </span>
                         ) : <span className="text-xs text-muted-foreground">—</span>}
                       </TableCell>
                       <TableCell>
-                        {assessment ? <RiskBadge level={assessment.riskLevel} /> : <span className="text-xs text-muted-foreground">—</span>}
+                        {org.riskLevel ? <RiskBadge level={org.riskLevel} /> : <span className="text-xs text-muted-foreground">—</span>}
                       </TableCell>
                       <TableCell className="hidden lg:table-cell">
-                        {assessment?.riskNature
-                          ? <RiskNatureBadge riskNature={assessment.riskNature} />
+                        {org.riskNature
+                          ? <RiskNatureBadge riskNature={org.riskNature} />
                           : <span className="text-xs text-muted-foreground">—</span>}
                       </TableCell>
                       <TableCell className="text-right">
-                        {assessment ? (
-                          <span className={`font-bold ${assessment.overallCapacityScore >= 70 ? 'text-green-600' : assessment.overallCapacityScore >= 40 ? 'text-yellow-600' : 'text-red-600'}`}>
-                            {assessment.overallCapacityScore}
+                        {score != null ? (
+                          <span className={`font-bold ${score >= 70 ? 'text-green-600' : score >= 40 ? 'text-yellow-600' : 'text-red-600'}`}>
+                            {score}
                           </span>
                         ) : <span className="text-xs text-muted-foreground">—</span>}
                       </TableCell>
