@@ -1,7 +1,36 @@
 import React from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { fetchOrgsStats, reqEnvelope } from '@/api/httpClient';
+
+// Hover-prefetch the data the OrganizationProfile page reads, so a click on
+// a "Top Flagged" / "Hot List" row paints the destination instantly. Idempotent
+// within the global staleTime — repeated hovers cost nothing.
+function useOrgPrefetch() {
+  const qc = useQueryClient();
+  return (orgId) => {
+    if (!orgId) return;
+    qc.prefetchQuery({
+      queryKey: ['org', String(orgId)],
+      queryFn: async () => {
+        const orgs = await base44.entities.Organizations.filter({ id: orgId });
+        return orgs[0];
+      },
+    });
+    qc.prefetchQuery({
+      queryKey: ['funding', 'page1', String(orgId)],
+      queryFn: () => base44.entities.FundingRecords.listPage({ organizationId: orgId, limit: 500 }),
+    });
+    qc.prefetchQuery({
+      queryKey: ['financials', String(orgId)],
+      queryFn: () => base44.entities.FinancialIndicators.filter({ organizationId: orgId }),
+    });
+    qc.prefetchQuery({
+      queryKey: ['assessments-org', String(orgId)],
+      queryFn: () => base44.entities.CapacityAssessments.filter({ organizationId: orgId }),
+    });
+  };
+}
 async function fetchAssessmentStats() {
   const { data } = await reqEnvelope('/api/assessments/stats');
   return data;
@@ -133,6 +162,7 @@ function WarehouseHotList() {
     staleTime: 5 * 60 * 1000,
   });
   const rows = data?.data?.rows ?? data?.rows ?? [];
+  const prefetchOrg = useOrgPrefetch();
 
   return (
     <Card>
@@ -170,7 +200,11 @@ function WarehouseHotList() {
               const scoreColor = score >= 8 ? 'text-red-600' : score >= 5 ? 'text-orange-500' : 'text-muted-foreground';
               const Wrap = r.entity_id ? Link : 'div';
               const wrapProps = r.entity_id
-                ? { to: `/organizations/${r.entity_id}` }
+                ? {
+                    to: `/organizations/${r.entity_id}`,
+                    onMouseEnter: () => prefetchOrg(r.entity_id),
+                    onFocus: () => prefetchOrg(r.entity_id),
+                  }
                 : {};
               return (
                 <Wrap
@@ -215,6 +249,7 @@ function WarehouseHotList() {
 }
 
 export default function Dashboard() {
+  const prefetchOrg = useOrgPrefetch();
   // Aggregate stats across the whole 851K-entity universe — no list pulled.
   const { data: stats } = useQuery({ queryKey: ['orgs', 'stats'], queryFn: fetchOrgsStats });
   const { data: assessmentStats } = useQuery({
@@ -633,6 +668,8 @@ export default function Dashboard() {
                   <Link
                     key={a.id}
                     to={`/organizations/${a.organizationId}`}
+                    onMouseEnter={() => prefetchOrg(a.organizationId)}
+                    onFocus={() => prefetchOrg(a.organizationId)}
                     className="flex items-center gap-4 px-6 py-3 hover:bg-muted/40 transition-colors group"
                   >
                     <span className="text-xs text-muted-foreground w-4 font-mono">{idx + 1}</span>

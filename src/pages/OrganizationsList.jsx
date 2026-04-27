@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useQuery, keepPreviousData } from '@tanstack/react-query';
+import { useQuery, keepPreviousData, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Link, useNavigate } from 'react-router-dom';
 import { Building2, Plus, Search, SlidersHorizontal, X, ArrowUpDown, Loader2 } from 'lucide-react';
@@ -53,7 +53,36 @@ export default function OrganizationsList() {
   const [showFilters, setShowFilters] = useState(false);
 
   const navigate = useNavigate();
+  const qc = useQueryClient();
   const isScoreSort = sortMode !== 'default';
+
+  // Prefetch the org details + funding + financials + assessments for a row
+  // when the user hovers over it. By the time the click fires, react-query
+  // has the data warm and the OrganizationProfile renders without a spinner.
+  // Idempotent — repeated hovers don't re-fetch within the staleTime window.
+  // Lazy import keeps OrganizationProfile out of this chunk.
+  const prefetchOrg = (orgId) => {
+    if (!orgId) return;
+    qc.prefetchQuery({
+      queryKey: ['org', String(orgId)],
+      queryFn: async () => {
+        const orgs = await base44.entities.Organizations.filter({ id: orgId });
+        return orgs[0];
+      },
+    });
+    qc.prefetchQuery({
+      queryKey: ['funding', 'page1', String(orgId)],
+      queryFn: () => base44.entities.FundingRecords.listPage({ organizationId: orgId, limit: 500 }),
+    });
+    qc.prefetchQuery({
+      queryKey: ['financials', String(orgId)],
+      queryFn: () => base44.entities.FinancialIndicators.filter({ organizationId: orgId }),
+    });
+    qc.prefetchQuery({
+      queryKey: ['assessments-org', String(orgId)],
+      queryFn: () => base44.entities.CapacityAssessments.filter({ organizationId: orgId }),
+    });
+  };
 
   // Debounce search input — fires the server query 350 ms after typing stops.
   useEffect(() => {
@@ -295,6 +324,8 @@ export default function OrganizationsList() {
                     <TableRow
                       key={org.id}
                       className="cursor-pointer hover:bg-muted/30"
+                      onMouseEnter={() => prefetchOrg(org.id)}
+                      onFocus={() => prefetchOrg(org.id)}
                       onClick={() => navigate(`/organizations/${org.id}`)}
                     >
                       <TableCell>
