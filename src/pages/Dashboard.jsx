@@ -308,9 +308,9 @@ export default function Dashboard() {
     : 0;
 
   const pieData = [
-    { name: 'Low Concern',   value: lowCount,  color: '#22c55e' },
-    { name: 'Moderate',      value: modCount,  color: '#eab308' },
-    { name: 'High Concern',  value: highCount, color: '#ef4444' },
+    { name: 'Score ≥ 68 (low)',     value: lowCount,  color: '#22c55e' },
+    { name: 'Score 40–67 (mod)',    value: modCount,  color: '#eab308' },
+    { name: 'Score < 40 (high)',    value: highCount, color: '#ef4444' },
   ].filter(d => d.value > 0);
 
   // Prefer real high-risk rows from server. If there are none, fall back to
@@ -461,21 +461,21 @@ export default function Dashboard() {
         <StatPill title="Avg. Score" value={avgScore > 0 ? avgScore : '–'} sub="out of 100"
           color={avgScore >= 68 ? 'text-green-600' : avgScore >= 40 ? 'text-yellow-600' : 'text-red-600'} />
         <StatPill
-          title="Low Concern"
+          title="Score ≥ 68"
           value={typeof lowCount === 'number' ? lowCount.toLocaleString() : lowCount}
-          sub={usingAggregate ? 'across all stored assessments' : 'on this page'}
+          sub="capacity score band: low concern"
           color="text-green-600"
         />
         <StatPill
-          title="Moderate"
+          title="Score 40–67"
           value={typeof modCount === 'number' ? modCount.toLocaleString() : modCount}
-          sub={usingAggregate ? 'across all stored assessments' : 'on this page'}
+          sub="capacity score band: moderate"
           color="text-yellow-600"
         />
         <StatPill
-          title="High Concern"
+          title="Score < 40"
           value={typeof highCount === 'number' ? highCount.toLocaleString() : highCount}
-          sub={usingAggregate ? 'across all stored assessments' : 'on this page'}
+          sub="capacity score band: high concern"
           color="text-red-600"
         />
       </div>
@@ -498,11 +498,11 @@ export default function Dashboard() {
         return (
           <div>
             <div className="flex items-center gap-2 mb-3">
-              <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Risk Nature Breakdown</h2>
+              <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Risk Nature Classification</h2>
               <span className="text-xs text-muted-foreground">
-                — What kind of risk is this?
+                — capacity readiness × integrity concern; different from the capacity-score band above
                 {useAggregate && (
-                  <span className="ml-1 italic">across all {assessmentStats.total.toLocaleString()} stored assessments</span>
+                  <span className="ml-1 italic">· across all {assessmentStats.total.toLocaleString()} stored assessments</span>
                 )}
               </span>
             </div>
@@ -528,10 +528,16 @@ export default function Dashboard() {
       {/* Charts + Queue */}
       <div className="grid lg:grid-cols-3 gap-4">
 
-        {/* Risk distribution donut */}
+        {/* Risk distribution donut — Layer 1 capacity-score band, NOT the
+            Layer 2C riskNature classification. Same entity counts in two
+            different views. The label collision with the Risk Nature panel
+            below was confusing reviewers, so this title is now explicit. */}
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Risk Distribution</CardTitle>
+            <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+              Capacity Score Distribution
+            </CardTitle>
+            <p className="text-[10px] text-muted-foreground mt-0.5">overallCapacityScore band — different from Risk Nature below</p>
           </CardHeader>
           <CardContent>
             {pieData.length > 0 ? (
