@@ -488,6 +488,10 @@ export default function Dashboard() {
         // panel's vocabulary (Low/Moderate/High Concern). The underlying
         // riskNature keys persisted in app_assessments are unchanged — these
         // are just the box titles + sub-explanations on the dashboard.
+        // Strictly-descriptive labels — each one names what the data shows,
+        // not what we'd recommend. The four boxes read as a spectrum on the
+        // capacity-vs-funding axis (Aligned → Below Scale → Above Capacity →
+        // Integrity Concern).
         const natures = [
           {
             key: 'Ready',
@@ -496,12 +500,12 @@ export default function Dashboard() {
           },
           {
             key: 'Emerging but Underdeveloped',
-            shortLabel: 'Building Capacity',
-            sublabel: 'Mission-aligned but operations lag funding',
+            shortLabel: 'Capacity Below Scale',
+            sublabel: 'Operational signals lag the funding scale observed',
           },
           {
             key: 'Overstretched / Request Exceeds Capacity',
-            shortLabel: 'Capacity Strained',
+            shortLabel: 'Funding Above Capacity',
             sublabel: 'Funding scale exceeds observable capacity',
           },
           {
