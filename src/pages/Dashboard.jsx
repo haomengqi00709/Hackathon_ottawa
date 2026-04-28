@@ -484,39 +484,65 @@ export default function Dashboard() {
           aggregate (across all 851K precomputed rows). Fall back to the page
           sample only when stats haven't loaded or the batch hasn't run. */}
       {(() => {
-        const natures = ['Ready', 'Emerging but Underdeveloped', 'Overstretched / Request Exceeds Capacity', 'High Concern / Enhanced Due Diligence Required'];
+        // Display labels chosen to avoid colliding with the capacity-score
+        // panel's vocabulary (Low/Moderate/High Concern). The underlying
+        // riskNature keys persisted in app_assessments are unchanged — these
+        // are just the box titles + sub-explanations on the dashboard.
+        const natures = [
+          {
+            key: 'Ready',
+            shortLabel: 'Capacity Aligned',
+            sublabel: 'Operational profile matches funding scale',
+          },
+          {
+            key: 'Emerging but Underdeveloped',
+            shortLabel: 'Building Capacity',
+            sublabel: 'Mission-aligned but operations lag funding',
+          },
+          {
+            key: 'Overstretched / Request Exceeds Capacity',
+            shortLabel: 'Capacity Strained',
+            sublabel: 'Funding scale exceeds observable capacity',
+          },
+          {
+            key: 'High Concern / Enhanced Due Diligence Required',
+            shortLabel: 'Integrity Concern',
+            sublabel: 'Multiple structural mismatch signals',
+          },
+        ];
         const aggregate = assessmentStats?.byRiskNature;
         const useAggregate = aggregate && Object.values(aggregate).some(v => v > 0);
         const counts = {};
-        natures.forEach(n => {
-          counts[n] = useAggregate
-            ? (aggregate[n] ?? 0)
-            : latest.filter(a => a.riskNature === n).length;
+        natures.forEach(({ key }) => {
+          counts[key] = useAggregate
+            ? (aggregate[key] ?? 0)
+            : latest.filter(a => a.riskNature === key).length;
         });
-        const anyCount = natures.some(n => counts[n] > 0);
+        const anyCount = natures.some(({ key }) => counts[key] > 0);
         if (!anyCount) return null;
         return (
           <div>
             <div className="flex items-center gap-2 mb-3">
-              <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Risk Nature Classification</h2>
+              <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Profile Type</h2>
               <span className="text-xs text-muted-foreground">
-                — capacity readiness × integrity concern; different from the capacity-score band above
+                — what kind of operating profile does this entity fit? (separate from the capacity-score band above)
                 {useAggregate && (
                   <span className="ml-1 italic">· across all {assessmentStats.total.toLocaleString()} stored assessments</span>
                 )}
               </span>
             </div>
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
-              {natures.map(n => {
-                const cfg = RISK_NATURE_CONFIG[n];
-                const count = counts[n];
+              {natures.map(({ key, shortLabel, sublabel }) => {
+                const cfg = RISK_NATURE_CONFIG[key];
+                const count = counts[key];
                 return (
-                  <div key={n} className={`rounded-xl border p-4 ${cfg.bg} ${cfg.border}`}>
+                  <div key={key} className={`rounded-xl border p-4 ${cfg.bg} ${cfg.border}`}>
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-lg">{cfg.emoji}</span>
                       <span className={`text-2xl font-bold ${cfg.color}`}>{count.toLocaleString()}</span>
                     </div>
-                    <p className={`text-xs font-semibold leading-snug ${cfg.color}`}>{n}</p>
+                    <p className={`text-xs font-bold leading-snug ${cfg.color}`}>{shortLabel}</p>
+                    <p className={`text-[10px] mt-0.5 leading-snug opacity-75 ${cfg.color}`}>{sublabel}</p>
                   </div>
                 );
               })}
