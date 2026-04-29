@@ -124,6 +124,11 @@ export async function fetchOrgsStats() {
   return data;
 }
 
+export async function fetchOrgQuality(orgId) {
+  const { data } = await reqEnvelope(`/api/orgs/${orgId}/quality`);
+  return data;
+}
+
 export const httpBase44 = {
   entities: {
     Organizations:       makeEntity('/api/orgs'),
