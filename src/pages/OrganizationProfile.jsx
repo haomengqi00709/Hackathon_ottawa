@@ -11,6 +11,7 @@ import InlineReviewDialog from '@/components/org-profile/InlineReviewDialog';
 import RelatedRecords from '@/components/org-profile/RelatedRecords';
 import DataQualityPanel from '@/components/org-profile/DataQualityPanel';
 import { calculateCapacityScores } from '@/lib/scoringEngine';
+import OrgProfileSkeleton from '@/components/skeletons/OrgProfileSkeleton';
 
 export default function OrganizationProfile() {
   const { id: orgId } = useParams();
@@ -108,11 +109,7 @@ Reflect the Risk Nature Classification in your summary. Write in neutral, eviden
     setIsRunning(false);
   };
 
-  if (!org) return (
-    <div className="flex items-center justify-center h-64">
-      <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-    </div>
-  );
+  if (!org) return <OrgProfileSkeleton />;
 
   return (
     <div className="space-y-5 max-w-3xl mx-auto">
