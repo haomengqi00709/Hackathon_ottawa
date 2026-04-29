@@ -9,6 +9,7 @@ import RiskBadge from '@/components/shared/RiskBadge';
 import ReportCard from '@/components/org-profile/ReportCard';
 import InlineReviewDialog from '@/components/org-profile/InlineReviewDialog';
 import RelatedRecords from '@/components/org-profile/RelatedRecords';
+import DataQualityPanel from '@/components/org-profile/DataQualityPanel';
 import { calculateCapacityScores } from '@/lib/scoringEngine';
 
 export default function OrganizationProfile() {
@@ -247,6 +248,9 @@ Reflect the Risk Nature Classification in your summary. Write in neutral, eviden
 
       {/* ── RELATED RECORDS — gathered from every linked table ── */}
       <RelatedRecords orgId={orgId} />
+
+      {/* ── DATA-QUALITY NOTICES — warehouse ETL flags ── */}
+      <DataQualityPanel orgId={orgId} />
 
       {/* Review dialog */}
       {showReviewDialog && latestAssessment && (
