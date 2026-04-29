@@ -184,6 +184,17 @@ export const httpBase44 = {
   },
 };
 
+// Ghost Organization Analysis helpers
+export async function fetchGhostsStats() {
+  const { data } = await reqEnvelope('/api/ghosts/stats');
+  return data;
+}
+
+export async function fetchGhostDetail(entityId) {
+  const { data } = await reqEnvelope(`/api/ghosts/${entityId}`);
+  return data;
+}
+
 // CRA-data-shaped client: maps the same Express endpoints into the
 // craApi shape that pages like CredibilityEngine and DecisionEngine expect.
 export const httpCraApi = {

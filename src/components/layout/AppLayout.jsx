@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Building2, ClipboardCheck, FileSearch,
   ListChecks, Sliders, Settings, Shield, Menu, X, ChevronRight, ClipboardList, FlaskConical, Database,
   ScanSearch, Activity, Zap,
-  Repeat, Layers, ScrollText, GitBranch, Users2, Target, LineChart, AlertTriangle,
+  Repeat, Layers, ScrollText, GitBranch, Users2, Target, LineChart, AlertTriangle, Ghost,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -39,6 +39,7 @@ const navSections = [
       { path: '/cross-source', label: 'Cross-Source', icon: Layers, problem: 8 },
       { path: '/contract-intelligence', label: 'Contract Intelligence', icon: LineChart, problem: 9 },
       { path: '/adverse-media', label: 'Adverse Media', icon: AlertTriangle, problem: 10 },
+      { path: '/ghosts', label: 'Ghost Analysis', icon: Ghost },
     ],
   },
   {
