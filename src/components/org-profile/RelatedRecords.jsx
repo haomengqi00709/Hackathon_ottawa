@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { apiBase } from '@/api/httpClient';
 import { ChevronDown, ChevronRight, Loader2, Database, Users, Banknote, Repeat, FileText, AlertTriangle, Building, Receipt, Gift } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import LinkageBadge from '@/components/shared/LinkageBadge';
 
 const fmt = (n) =>
   n == null
@@ -161,6 +162,7 @@ export default function RelatedRecords({ orgId }) {
               { key: 'prog_name_en', label: 'Program' },
               { key: 'owner_org_title', label: 'Department' },
               { key: 'agreement_value', label: 'Amount', align: 'right', render: (r) => fmt(r.agreement_value) },
+              { key: 'matchMethod', label: 'Match', render: (r) => <LinkageBadge method={r.matchMethod} confidence={r.matchConfidence} /> },
             ]}
           />
         </Section>
@@ -174,6 +176,7 @@ export default function RelatedRecords({ orgId }) {
               { key: 'program', label: 'Program' },
               { key: 'ministry', label: 'Ministry' },
               { key: 'amount', label: 'Amount', align: 'right', render: (r) => fmt(r.amount) },
+              { key: 'matchMethod', label: 'Match', render: (r) => <LinkageBadge method={r.matchMethod} confidence={r.matchConfidence} /> },
             ]}
           />
         </Section>
@@ -186,6 +189,7 @@ export default function RelatedRecords({ orgId }) {
               { key: 'ministry', label: 'Ministry' },
               { key: 'recipient', label: 'Recipient' },
               { key: 'amount', label: 'Amount', align: 'right', render: (r) => fmt(r.amount) },
+              { key: 'matchMethod', label: 'Match', render: (r) => <LinkageBadge method={r.matchMethod} confidence={r.matchConfidence} /> },
             ]}
           />
         </Section>
@@ -199,6 +203,7 @@ export default function RelatedRecords({ orgId }) {
               { key: 'ministry', label: 'Ministry' },
               { key: 'contract_services', label: 'Services' },
               { key: 'amount', label: 'Amount', align: 'right', render: (r) => fmt(r.amount) },
+              { key: 'matchMethod', label: 'Match', render: (r) => <LinkageBadge method={r.matchMethod} confidence={r.matchConfidence} /> },
             ]}
           />
         </Section>
