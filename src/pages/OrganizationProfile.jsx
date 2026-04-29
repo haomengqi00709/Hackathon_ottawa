@@ -32,7 +32,7 @@ export default function OrganizationProfile() {
   // Use listPage so we get authoritative meta.total + meta.totalAmount.
   const { data: fundingPage } = useQuery({
     queryKey: ['funding', 'page1', orgId],
-    queryFn: () => base44.entities.FundingRecords.listPage({ organizationId: orgId, limit: 500 }),
+    queryFn: () => base44.entities.FundingRecords.listPage({ organizationId: orgId, limit: 100 }),
     enabled: !!orgId,
   });
   const funding = fundingPage?.data ?? [];
