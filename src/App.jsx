@@ -35,6 +35,7 @@ const PolicyAlignmentPage   = lazy(() => import('@/pages/PolicyAlignmentPage'));
 const ContractIntelligencePage = lazy(() => import('@/pages/ContractIntelligencePage'));
 const AdverseMediaPage      = lazy(() => import('@/pages/AdverseMediaPage'));
 const GhostOrganizationsPage = lazy(() => import('@/pages/GhostOrganizationsPage'));
+const SmallOrgAdvocacyPage   = lazy(() => import('@/pages/SmallOrgAdvocacyPage'));
 
 // Lightweight placeholder shown while a code-split page chunk loads. Sub-300ms
 // in practice on a warm cache; this keeps the UI from flashing blank.
@@ -91,6 +92,7 @@ const AuthenticatedApp = () => {
           <Route path="/contract-intelligence" element={<ContractIntelligencePage />} />
           <Route path="/adverse-media" element={<AdverseMediaPage />} />
           <Route path="/ghosts" element={<GhostOrganizationsPage />} />
+          <Route path="/advocacy" element={<SmallOrgAdvocacyPage />} />
         </Route>
         <Route path="*" element={<PageNotFound />} />
       </Routes>
